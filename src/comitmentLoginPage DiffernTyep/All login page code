@@ -1,0 +1,116 @@
+// import React, { useEffect, useRef } from 'react'
+// // import { useDispatch } from 'react-redux'
+// import { auth } from '../Firebase/Firebase'
+// import { onAuthStateChanged, signOut } from 'firebase/auth'
+// // import { collection, getDocs, query, where } from 'firebase/firestore'
+// // import { addUser } from '../Store/ReduxSlice/userSlice'
+// // import { useNavigate } from 'react-router-dom'
+// import { signInWithEmailAndPassword } from 'firebase/auth'
+
+// const Login = () => {
+
+//   //const dispatch = useDispatch()
+
+//   const usernameRef = useRef()
+//   const passwordRef = useRef()
+
+//   // const navigate = useNavigate()
+
+//   useEffect (()=>{
+//     const fun =()=>{
+//       onAuthStateChanged(auth, (user) => {
+//         if (user) {
+//           // User is signed in, see docs for a list of available properties
+//           // https://firebase.google.com/docs/reference/js/auth.user
+//           const uid = user.uid;
+//           // ...
+//           console.log(user)
+//         } else {
+//           // User is signed out
+//           // ...
+//           console.log('user error')
+//         }
+//       });
+//     }
+
+//     fun()
+    
+//     return()=>{
+//       fun()
+//     }
+//   },[])
+
+ 
+//   const loginSubmit = ()=>{
+
+//     const email = usernameRef.current.value
+//     const password = passwordRef.current.value
+
+    
+
+//     signInWithEmailAndPassword(auth, email, password)
+//     .then((userCredential) => {
+//       // Signed in 
+//       const user = userCredential.user;
+//       console.log(user)
+//       // ...
+//     })
+//     .catch((error) => {
+//      //const errorCode = error.code;
+//       const errorMessage = error.message;
+//       console.log(errorMessage)
+//     });
+
+
+//     // const q = query(collection(db, "users"), where("username", "==", "admin"));
+
+//     //   getDocs(q)
+//     //     .then((querySnapshot) => {
+//     //       querySnapshot.forEach((doc) => {
+//     //           // doc.data() is never undefined for query doc snapshots
+//     //           console.log(doc.id, " => ", doc.data());
+//     //           dispatch(addUser(doc.data()))
+//     //       });
+
+//     //       navigate('/admin')
+
+//     //     })
+//     //     .catch((error) => {
+//     //         console.log("Error getting documents: ", error);
+//     //     });
+ 
+//   }
+  
+//   return (
+//     <div className='pt-[130px] mb-10 sm:px-12 md:px-120 w-full h-screen'>
+//       <input ref={usernameRef} type='email' placeholder='email'/>
+//       <input ref={passwordRef} type='password' placeholder='password'/>
+//       <button onClick={loginSubmit}>Login</button>
+//       <button onClick={()=>{
+//         signOut(auth).then(() => {
+//           // Sign-out successful.
+//           alert('user sing out ')
+//         }).catch((error) => {
+//           // An error happened.
+//           alert(error.message)
+//         });
+
+//       }}>Logout</button>
+       
+//     </div>
+//   )
+// }
+
+// export default Login
+
+
+// --------------ADMIN PAGE ROUTING  LOGIC 1-----------
+// if(userData.name){
+//   if(!(userData.name === 'default')){
+//     if(!(userData.role === "admin")){
+//         navigation('/404')
+//     }
+//   }
+// }else{
+//   navigation('/404')            
+//   }

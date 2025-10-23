@@ -1,0 +1,116 @@
+/* src/components/Slider.css */
+img{
+  display: block;
+  width: 100%;
+  gap:12px;
+}
+.mySwiper {
+  width: 100%;
+  padding: 50px 0;
+}
+.slider-wrap {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  gap: 20px;
+  
+}
+.container{
+  width: 80%;  
+}
+
+.swiper-slide {
+  position: relative;
+  width: 250px;
+  height: 500px;
+  overflow: hidden;
+  margin-right: 10px;
+  border-radius: 16px;
+  transition: all 0.4s ease-in-out;
+  
+}
+
+.swiper-slide-active{
+  width: 600px;
+  
+}
+
+.swiper-slide::after{
+  content: '';
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  mix-blend-mode: multiply;
+  z-index: 1;
+  
+}
+/* Overlay for active slide */
+
+.swiper-slide-active::after{
+  background: linear-gradient(to top, rgba(0,0,0,0.6), transparent);
+}
+
+/* Image animation */
+
+.swiper-slide img{
+  height: 500px;
+  object-fit: cover;
+  object-position: 50% 50%;
+  transition:transform 1s ;
+  width:250px;
+  
+}
+.swiper-slide-active img{
+  transition: scale(1.1);
+  
+}
+.swiper-pagination-bullet{
+  width: 12px;
+  height: 12px;
+  transition: all 0.3s ease-in-out;
+}
+.swiper-pagination-bullet-active{
+  width: 28px;
+  border-radius: 8px;
+  
+}
+/* responsive */
+@media (max-width: 1024px) {
+  .swiper-slide-active {
+    width: 450px;
+  }
+  .swiper-slide {
+    height: 400px;
+  }
+  .swiper-slide img {
+    height: 400px;
+  }
+}
+
+@media (max-width: 768px) {
+  .swiper-slide-active {
+    width: 350px;
+  }
+  .swiper-slide {
+    height: 300px;
+  }
+  .swiper-slide img {
+    height: 300px;
+  }
+}
+
+@media (max-width: 480px) {
+  .swiper-slide-active {
+    width: 250px;
+  }
+  .swiper-slide {
+    height: 220px;
+  }
+  .swiper-slide img {
+    height: 220px;
+  }
+}

@@ -1,0 +1,41 @@
+
+.swiper-slide {
+  text-align: center;
+  font-size: 18px;
+  margin:0;
+  padding: 0;
+  /* Center slide text vertically */
+  display: flex;
+  flex-direction: column;  
+  align-items: center;
+}
+ 
+/* Default product card size */
+.product-card {
+  width: 190px;
+  height: 130px;
+}
+
+/* Tablets portrait */
+@media (min-width: 640px) and (max-width: 767px) {
+  .product-card {
+    width: 150px;
+    height: 110px;
+  }
+}
+
+/* Tablets landscape */
+@media (min-width: 768px) and (max-width: 1023px) {
+  .product-card {
+    width: 170px;
+    height: 120px;
+  }
+}
+
+/* Laptops & up */
+@media (min-width: 1024px) {
+  .product-card {
+    width: 190px;
+    height: 130px;
+  }
+}

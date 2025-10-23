@@ -1,0 +1,104 @@
+
+
+
+// import React, { useEffect, useState } from 'react'
+// import logout from '../../Utils/auth/logout'
+// import{genderOptions} from '../../Utils/data/genderOptions'
+ 
+ const User = () => {
+
+//   const [section, setSection] = useState(1)
+
+//   const gender= e.target['gender'].value
+//   console.log(gender)
+
+//   return (
+//     <div className='pt-[130px] w-full ms:h-full  md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300' >
+//        {section === 1 && <div className='w-full'>
+
+//         <input type="text" placeholder='Search...' />
+//         <input type="text" placeholder='Search...' />
+//         <input type="text" placeholder='Search...' />
+//         {/* selection gender*/}
+//         <LoginInputBox
+//            inputType='password' 
+//            name="cPassword" 
+//            label='Confirm Password:' 
+//            placeholder='Confirm Your Password'
+//            errorMsgBase='cPassword'           
+//            firebaseError={false}
+//            selectorData={genderOptions}
+
+//            />
+        
+
+//         
+
+//      user page
+      
+      
+      
+      
+//       <button onClick={logout}>log out</button>
+//     </div>
+
+//   )
+}
+
+ export default User
+
+
+// const LoginInputBox = ({inputType,name, label,placeholder,errorMsgBase ,setCanSubmit,setFirebaseError,firebaseError
+// ,selectorData
+// })=>{
+
+//   const [error, setError] = useState(false)
+//   const [errorMsg,setErrorMsg] = useState([])
+
+//   useEffect(()=>{
+//     if(firebaseError.email|| firebaseError.password){
+//       setError(true)
+//       setErrorMsg([firebaseError.email|| firebaseError.password])      
+//     }   
+  
+//   },[firebaseError])
+
+//   return(
+//     <>
+//       <div  className='w-[90%] my-3 mx-2'>
+//         <label className={`px-2 font-semibold ${error&& 'text-red-600'} text-black  text-sm bg-amber-50 `}>{label}</label>
+
+//         {selectorData? <select name={name} defaultValue={selectorData.defaultValue} className={`outline-none w-full`}>
+//           {selectorData.data.map(({value,title})=><option key={value} value={value}>{title}</option>
+//           )}
+
+//           </select> : <input
+//           className={`outline-none w-full text-gray-600 px-3 py-1 ${error && "placeholder:text-red-600 text-red-500 "}`} 
+//           type={inputType} 
+//           name={name} 
+//           placeholder={placeholder}
+//           onChange={()=>{
+//             if(errorMsgBase!=='false'){
+//               setFirebaseError(prev=>{
+//                 const temp = {...prev,email:false,password:false}
+//                 return temp 
+//               })
+//             }
+//             if(error){
+//               setError(false)
+//               setCanSubmit(true)
+//               setErrorMsg([])
+
+//             }
+//           }} />}
+
+
+//         <div className={`w-[90%] border-2 rounded-full p-2 my-2 ${error? 'border-red-600' :'border-orange-600'} `}>
+          
+//         </div>
+//         {error &&(errorMsgBase==='password'? errorMsg.map((error,index)=><p  className={`text-red-500 font-bold w-[80%] text-sm ${index===0 && 'mt-[-2px]'} ml-5`} key={index}>{error}</p>)
+//         :<p className='text-red-500 font-bold w-[80%] text-sm ml-5 '>{errorMsg?.join('.')}</p>)}
+//       </div>
+//     </>
+//   )
+// }
