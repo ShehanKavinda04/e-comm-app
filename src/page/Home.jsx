@@ -5,7 +5,7 @@ import UseHelp from '../component/help/UseHelp';
 import SystemHelp from '../component/help/SystemHelp';
 import Footer from '../component/Footer'
 import Product from '../component/Product/Product';
-import Category from '../component/category/Category';
+import Category from '../component/Category/Category';
 
 
 
