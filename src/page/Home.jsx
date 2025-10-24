@@ -1,4 +1,4 @@
-import Ads from '../component/ads/ads'
+import Ads from '../component/ads/Ads'
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import { IconButton } from '@mui/material';
 import UseHelp from '../component/help/UseHelp';
