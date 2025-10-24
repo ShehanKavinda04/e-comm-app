@@ -5,7 +5,7 @@ import Home from "./page/Home";
 import Login from "./page/Login/Login";
 import ItemPage from "./page/ItemPage";
 import CategoryItems from "./page/CategoryItems";
-import Category from "./component/category/Category";
+import Category from "./component/Category/Category";
 import UserProtected from "./Routers/UserProtected";
 import User from "./page/User/User";
 import AdminProtected from "./Routers/AdminProtected";
