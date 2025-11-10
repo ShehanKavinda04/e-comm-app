@@ -22,6 +22,8 @@ import Seller from "./page/Seller/Seller";
 import OTPPage from "./page/Login/OTPPage";
 import Forgatepass1 from "./page/Login/Forgatepass1";
 import Forgatepassword2 from "./page/Login/Forgatepassword2";
+import SellerProfile from "./page/Seller/SellerProfile";
+
 
 function App() {
   const dispatch = useDispatch();
@@ -66,6 +68,10 @@ function App() {
         {
           path: "/seller",
           element: <Seller />,
+        },
+        {
+          path: "/sellerProfile",
+          element: <SellerProfile />,
         },
         {
           path: "category",

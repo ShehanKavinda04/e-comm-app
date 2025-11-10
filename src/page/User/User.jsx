@@ -14,12 +14,9 @@ import LocationOnIcon from '@mui/icons-material/LocationOn';
 import MonetizationOnIcon from '@mui/icons-material/MonetizationOn';
 import PersonIcon from '@mui/icons-material/Person';
 
-
-
-
 const labelIcon =[
   {
-    
+    Icon:BusinessCenterIcon,
     title:"Overview",
     name:"Overview"
   },{

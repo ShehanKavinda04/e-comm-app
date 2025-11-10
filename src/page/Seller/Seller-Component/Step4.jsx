@@ -1,7 +1,32 @@
-import React from 'react'
+import React, { useRef, useState } from 'react'
 import { SellerInput } from './Step1'
 
-const Step4 = () => {
+const Step4 = ({ onSubmit }) => {
+
+  const [formData, setFormData] = useState({
+    bankName: '',
+    accountHolderName: '',
+    bankAccountNumber: '',
+    branchName: ''
+  });
+
+  const bankNameRef = useRef();
+  const accountHolderNameRef = useRef();
+  const bankAccountNumberRef = useRef();
+  const branchNameRef = useRef();
+
+  const handleInputChange = (e) => {
+    e.preventDefault();
+    setFormData({...formData,
+      bankName: bankNameRef.current.value,
+      accountHolderName: accountHolderNameRef.current.value,
+      bankAccountNumber: bankAccountNumberRef.current.value,
+      branchName: branchNameRef.current.value
+      
+    });
+  }
+  onSubmit(formData);
+
   return (
     <div>
       <div>
@@ -19,11 +44,12 @@ const Step4 = () => {
           </div>
         </div>
         <div className='flex flex-col items-center gap-4'>
-          <SellerInput textLabel='Bank Name:' type='text' name='Bank Name'/>
-          <SellerInput textLabel='Account Holder Name:' type='text' name='Holder Name'/>
-          <SellerInput textLabel='Bank Account Number:' type='text' name='Account Number'/>
-          <SellerInput textLabel='Branch Name:' type='text' name='Branch Name'/>
+          <SellerInput textLabel='Bank Name:' type='text' name='Bank Name' ref={bankNameRef}/>
+          <SellerInput textLabel='Account Holder Name:' type='text' name='Holder Name' ref={accountHolderNameRef}/>
+          <SellerInput textLabel='Bank Account Number:' type='text' name='Account Number' ref={bankAccountNumberRef}/>
+          <SellerInput textLabel='Branch Name:' type='text' name='Branch Name' ref={branchNameRef}/>
         </div>
+        <button onClick={handleInputChange} className='bg-orange-600 text-white px-4 py-2 rounded-full mt-4'>Submit</button>
 
       </div>
     </div>

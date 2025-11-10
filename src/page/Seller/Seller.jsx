@@ -33,7 +33,6 @@ const SelectIconDetails=[
 ]
 
 const Seller = () => {
-
   const [section, setSection] = useState(1)
 
   return (
@@ -50,41 +49,43 @@ const Seller = () => {
             <SelectIcon key={index} Icon={Icon} title={title} subtitle={subtitle}/>
           ))}
         </div>
-        {section === 1 && 
-          <div className='bg-white m-7'>
-            <Step1/>
-            <div className='flex justify-end  mt-11 mr-10'>
-              <button type='submit'  className='bg-orange-600 px-5 py-1 rounded mb-9' onClick={() => setSection(2)}>Next Step</button>
+        {/* <form onSubmit={}> */}
+          {section === 1 && 
+            <div className='bg-white m-7'>
+              <Step1/>
+              <div className='flex justify-end  mt-11 mr-10'>
+                <button type='submit'  className='bg-orange-600 px-5 py-1 rounded mb-9' onClick={() => setSection(2)}>Next Step</button>
+              </div>
             </div>
-          </div>
-        }
-        {section === 2 && 
-          <div className='bg-white m-7'>
-            <Step2/>
-            <div className='flex justify-between mt-10 mx-10'>
-              <button type='submit'  className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(1)}>Previous</button>
-              <button type='submit'  className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(3)}>Next Step</button>
-            </div>            
-          </div>        
-        }
-        {section === 3 && 
-          <div className='bg-white m-7'>
-            <Step3/>
-            <div className='flex justify-between mt-22 mx-10'>
-              <button type='submit'  className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(2)}>Previous</button>
-              <button type='submit'  className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(4)}>Next Step</button>
-            </div>            
-          </div>        
-        }
-        {section === 4 && 
-          <div className='bg-white m-7'>
-            <Step4/>
-            <div className='flex justify-between mt-11 mx-10'>
-              <button type='submit'   className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(3)}>Previous</button>
-              <button type='submit'   className='bg-orange-600  px-5 py-1 rounded mb-9'  >Submit</button>
-            </div>            
-          </div>        
-        }
+          }
+          {section === 2 && 
+            <div className='bg-white m-7'>
+              <Step2/>
+              <div className='flex justify-between mt-10 mx-10'>
+                <button type='submit'  className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(1)}>Previous</button>
+                <button type='submit'  className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(3)}>Next Step</button>
+              </div>            
+            </div>        
+          }
+          {section === 3 && 
+            <div className='bg-white m-7'>
+              <Step3/>
+              <div className='flex justify-between mt-22 mx-10'>
+                <button type='submit'  className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(2)}>Previous</button>
+                <button type='submit'  className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(4)}>Next Step</button>
+              </div>            
+            </div>        
+          }
+          {section === 4 && 
+            <div className='bg-white m-7'>
+              <Step4/>
+              <div className='flex justify-between mt-11 mx-10'>
+                <button type='submit'   className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(3)}>Previous</button>
+                <button type='submit'   className='bg-orange-600  px-5 py-1 rounded mb-9'  >Submit</button>
+              </div>            
+            </div>        
+          }
+        {/* </form> */}
       </div>
     </div>
   )
