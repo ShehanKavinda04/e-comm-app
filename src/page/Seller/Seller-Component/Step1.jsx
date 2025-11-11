@@ -1,59 +1,40 @@
-import React, { forwardRef, useRef, useState } from 'react'
+import React from 'react'
 
-const Step1 = ({ onSubmit }) => {
-
-  const [formData, setFormData] = useState({
-    fullName: '',
-    phoneNumber: '',
-    email: '',
-    physicalAddress: ''
-  });
-
-  const fullNameRef = useRef();
-  const phoneNumberRef = useRef();
-  const emailRef = useRef();
-  const physicalAddressRef = useRef();
-
-  const handleSubmit = (e) => {
-    e.preventDefault();
-    setFormData({...formData,
-      fullName: fullNameRef.current.value,
-      phoneNumber: phoneNumberRef.current.value,
-      email: emailRef.current.value,
-      physicalAddress: physicalAddressRef.current.value
-    });
-  };
-
-  onSubmit(formData);
- 
-  // You can also pass formData to the parent component or handle it as needed
-
+export const SellerInput = ({ textLabel, type = 'text', name, value, onChange, accept }) => {
   return (
-    <div >
+    <div className='flex flex-col w-[90%] gap-1'>
+      <label className='text-black '>
+        {textLabel}
+      </label>
+      <input
+        type={type}
+        name={name}
+        value={type === 'file' ? undefined : value}
+        onChange={onChange}
+        accept={accept}
+        className='border-orange-600 w-full px-4 py-1 border-2 rounded-full focus:outline-none text-black'
+        autoComplete='off'
+      />
+    </div>
+  )
+}
+
+const Step1 = ({ formData, onChange }) => {
+  return (
+    <div>
       <div className='flex flex-col items-center'>
         <p className='text-black text-2xl mt-5' >Basic Information</p>
         <p className='text-gray-800 '>Please provide your personal contact details</p>
       </div>
+
       <div className='flex flex-col items-center gap-4'>
-        <SellerInput textLabel='Full Name:' ref={fullNameRef} type='text' name='Full Name'/>
-        <SellerInput textLabel='Phone Number:' ref={phoneNumberRef} type='text' name='Phone number'/>
-        <SellerInput textLabel='E mail:' ref={emailRef} type='email' name='E mail'/>
-        <SellerInput textLabel='Physical Address:' ref={physicalAddressRef} type='text' name='Physical Address'/>
+        <SellerInput textLabel='Full Name:' type='text' name='fullName' value={formData.fullName} onChange={onChange} />
+        <SellerInput textLabel='Phone Number:' type='tel' name='phoneNumber' value={formData.phoneNumber} onChange={onChange} />
+        <SellerInput textLabel='Email:' type='email' name='email' value={formData.email} onChange={onChange} />
+        <SellerInput textLabel='Physical Address:' type='text' name='physicalAddress' value={formData.physicalAddress} onChange={onChange} />
       </div>
-      <button onClick={handleSubmit} className='bg-orange-600 text-white px-4 py-2 rounded-full mt-4'>Submit</button>
     </div>
   )
 }
 
 export default Step1
-
-export const SellerInput = forwardRef(({textLabel, type, name}, ref) => {
-  return(
-    <div className='flex flex-col w-[90%] gap-1'>
-      <label className='text-black '>
-        {textLabel}
-      </label>
-      <input type={type} ref={ref} name={name} className='border-orange-600 w-full px-4 py-1 border-2 rounded-full focus:outline-none text-black' />    
-    </div>
-  )
-})
