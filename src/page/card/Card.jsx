@@ -2,23 +2,30 @@ import ShoppingCartOutlinedIcon from '@mui/icons-material/ShoppingCartOutlined';
 import ArrowBackIcon from '@mui/icons-material/ArrowBack';
 import Footer from '../../component/Footer'
 
+
+import { useNavigate } from 'react-router-dom';
+
 const Card = () => {
+  const navigate = useNavigate();
   return (
     <div className='pt-[190px] w-full ms:h-full  md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300 '>
       <div className='flex flex-col justify-center items-center gap-2'>
         <ShoppingCartOutlinedIcon sx={{
-          color:'black',
-          fontSize:220          
-        }}/>
+          color: 'black',
+          fontSize: 220
+        }} />
         <p className='text-black text-3xl font-normal'>Your cart is empty</p>
         <p className='text-gray-700'>Looks like you haven't added any items to your cart yet.</p>
-        <div className='bg-orange-700 mb-[90px] w-[30%] gap-2 justify-center flex px-2 py-2 cursor-pointer active:bg-orange-600'>
-          <ArrowBackIcon/>
+        <div
+          onClick={() => navigate('/products')}
+          className='bg-orange-700 mb-[90px] w-[30%] gap-2 justify-center flex px-2 py-2 cursor-pointer active:bg-orange-600 hover:bg-orange-800 transition rounded-md text-white font-medium'
+        >
+          <ArrowBackIcon />
           Continue Shopping
         </div>
       </div>
 
-      <Footer/>
+      <Footer />
     </div>
   )
 }

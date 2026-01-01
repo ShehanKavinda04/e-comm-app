@@ -1,28 +1,35 @@
-import React, { useEffect, useState } from 'react'
-import { useSelector } from 'react-redux'
-import { Outlet } from 'react-router-dom'
-import { userSelector } from '../Store/ReduxSlice/userSlice'
-import NoUrl from '../page/404/NoUrl'
-
+import { Navigate, Outlet } from "react-router-dom";
+import { useContext } from "react";
+import { AuthContext } from "../Contexts/AuthContext"; // Adjust path if needed
 
 const AdminProtected = () => {
-   // const admin = false  
+  const { user, loading } = useContext(AuthContext);
 
-   const userData= useSelector(userSelector)  
-   const [canView,setCanView] = useState(false) 
+  // 1. Still checking token / loading user
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div>Loading...</div>
+      </div>
+    );
+  }
 
-   useEffect(()=>{
-      if(userData.name){
-         if(!(userData.name === 'default')){
-            if(userData.role === "admin"){
-               setCanView(true)
-            }
-         }
-      }
- 
-   },[userData])
-   
-   return canView? <Outlet/>:<NoUrl/>     
-}
+  // 2. Not logged in → go to login
+  if (!user) {
+    return <Navigate to="/login" replace />;
+  }
 
-export default AdminProtected 
+  // 3. Logged in but not ADMIN → redirect home (or show 404)
+  if (user.role !== "ADMIN") {
+    // Option A: Redirect to home
+    return <Navigate to="/" replace />;
+
+    // Option B: Show 404 page instead (uncomment if you prefer)
+    // return <NoUrl />;
+  }
+
+  // 4. Everything good → render child routes (Admin dashboard, etc.)
+  return <Outlet />;
+};
+
+export default AdminProtected;

@@ -1,62 +1,72 @@
-import { useSelector } from "react-redux"
-import { categorySelector } from "../Store/ReduxSlice/categorySlice"
+import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
-import { ListItemButton, Rating } from "@mui/material"
-import { useEffect, useState } from "react"
-import getDataFromSubCollection from "../Utils/dataFetch/getDataFromSubCollection"
 import Loading from "../component/Loading/Loading"
 import Footer from "../component/Footer"
+import { getProducts } from "../Services/MockDataService"
+import { CategoryItem } from "../component/Product/Product"
+import getDataFromCollection from "../Utils/dataFetch/getDataFromCollection"
 
 const CategoryItems = () => {
-  const category = useSelector(categorySelector)
-  const {categoryId}= useParams();
-  const [categoryTitle]= category.filter((ele)=>ele.id===(categoryId.toString())
-)
-  const [categoryItemData, setCategoryItemData]=useState([])
-  
-  //fetch category items data
-  useEffect(()=>{
-    getDataFromSubCollection('category',categoryId,categoryId,setCategoryItemData)
-  },[])
-  if(categoryItemData.length === 0){
-    return<Loading/>
-  }  
-    return (
-      <div>
-        <div className='pt-[130px] w-full h-screen sm:px-6 md:px-20 overflow-scroll bg-gray-300'>
-          <h2 className="text-black ml-5 font-bold mb-6 text-xl" >
-            { categoryTitle ? categoryTitle.title : "Category Not Found"}
+  const { categoryId } = useParams();
+  const [categoryItemData, setCategoryItemData] = useState([]);
+  const [categoryTitle, setCategoryTitle] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    // 1. Fetch products and filter by categoryId
+    const allProducts = getProducts();
+    const filtered = allProducts.filter(p =>
+      p.category && p.category.toLowerCase().replace(/\s+/g, '-') === categoryId.toLowerCase()
+    );
+    setCategoryItemData(filtered);
+
+    // 2. Fetch category title from the central collection
+    getDataFromCollection('category', (categories) => {
+      const found = categories.find(c => c.CategoryId === categoryId);
+      if (found) setCategoryTitle(found.title);
+      setLoading(false);
+    });
+  }, [categoryId]);
+
+  if (loading) {
+    return <Loading />
+  }
+  return (
+    <div className="bg-gray-50 min-h-screen">
+      <div className='pt-[130px] w-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-20 pb-20'>
+        <div className="mb-10 text-center md:text-left">
+          <h2 className="text-3xl font-bold text-gray-900 capitalize" >
+            {categoryTitle || categoryId.replace(/-/g, ' ')}
           </h2>
-          <div className="w-full grid sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 grid-rows[auto] gap-5 px-3 ">
-            {categoryItemData?.map(({img,title},index)=>
-              <CategoryItemsBlock className=' cursor-pointer ' key={index} imgUrl={img} title={title}/>
-            )}
-          </div>
+          <p className="text-gray-500 text-sm mt-1">Found {categoryItemData.length} items in this category</p>
         </div>
-        <Footer/>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+          {categoryItemData.length > 0 ? (
+            categoryItemData.map((item, index) => (
+              <CategoryItem
+                key={index}
+                id={item.id}
+                imgUrl={item.image}
+                name={item.brand}
+                product={item.category}
+                rating={item.rating || 4.5}
+                reviews={`${Math.floor(Math.random() * 100) + 20} reviews`}
+                title={item.title}
+                price={item.price}
+              />
+            ))
+          ) : (
+            <div className="col-span-full py-20 text-center bg-white rounded-lg border border-dashed border-gray-300">
+              <p className="text-gray-500 italic">No products found in this category yet.</p>
+            </div>
+          )}
+        </div>
       </div>
+      <Footer />
+    </div>
   )
 }
 
 export default CategoryItems
 
-const CategoryItemsBlock = ({imgUrl,title})=>{
-  return(
-    <ListItemButton sx={{
-      padding:0,
-      margin:0,
-    }}>
-    <div className='bg-amber-50 w-full shadow-md cursor-pointer hover:scale-105 transition-all mt-[10px] rounded-md p-3 mx-3'>
-      <img src={imgUrl} alt={title} className="w-full h-[180px] object-cover rounded" />
-      <h3 className="text-black font-semibold mt-2">{title}</h3>
-      <div className="mt-1">
-        <Rating 
-          name="half-rating-read"
-          defaultValue={2.5}
-          precision={0.5} size="small" readOnly />
-      </div>
-    </div>
-    </ListItemButton>
-  )
-
-}

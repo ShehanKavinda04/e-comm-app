@@ -4,12 +4,19 @@ import './index.css'
 import App from './App.jsx'
 import { Provider } from 'react-redux'
 import store from './Store/ReduxSlice/store.js'
+import { AuthProvider } from './Contexts/AuthContext.jsx'
+import { HelmetProvider } from 'react-helmet-async';
+
+
 
 createRoot(document.getElementById('root')).render(
   <StrictMode>
-    <Provider store={store}>
-      <App /> 
-    </Provider>
+    <AuthProvider>
+      <Provider store={store}>
+        <HelmetProvider>
+          <App />
+        </HelmetProvider>
+      </Provider>
+    </AuthProvider>
   </StrictMode>,
 )
- 

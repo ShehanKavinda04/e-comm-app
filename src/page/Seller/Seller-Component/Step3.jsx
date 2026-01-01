@@ -16,15 +16,15 @@ import { SellerInput } from './Step1'
  * - Install axios: npm install axios
  */
 
-const MAX_FILE_MB = 500
-const MB = 1024 * 1024 * 500
+const MAX_FILE_MB = 900
+const MB = 1024 * 1024
 
 const humanFileSize = (size) => {
   if (size < MB) return `${Math.round(size / 1024)} KB`
   return `${(size / MB).toFixed(2)} MB`
 }
 
-const Step3 = ({ formData = {}, setFormData = () => {}, uploadUrl = '/api/upload' }) => {
+const Step3 = ({ formData = {}, setFormData = () => { }, uploadUrl = '/api/upload' }) => {
   return (
     <div>
       <div className="flex flex-col items-center">
@@ -54,7 +54,7 @@ const Step3 = ({ formData = {}, setFormData = () => {}, uploadUrl = '/api/upload
           description="Upload clear scans/photos of your NIC (front and back)."
           name="nicDocument"
           accept="image/*,application/pdf"
-          maxFiles={2}
+          maxFiles={6}
           formData={formData}
           setFormData={setFormData}
           uploadUrl={uploadUrl}
@@ -65,7 +65,7 @@ const Step3 = ({ formData = {}, setFormData = () => {}, uploadUrl = '/api/upload
           description="Upload a recent utility bill (water, electricity) with your name and address."
           name="proofOfAddress"
           accept="image/*,application/pdf"
-          maxFiles={2}
+          maxFiles={6}
           formData={formData}
           setFormData={setFormData}
           uploadUrl={uploadUrl}
@@ -180,7 +180,7 @@ const Dropzone = ({ title, description, name, accept = '*', maxFiles = 3, formDa
         if (p.id === id && p.preview) URL.revokeObjectURL(p.preview)
         // cancel an in-flight request if any
         if (p.id === id && p.cancelSource && p.status === 'uploading') {
-          try { p.cancelSource.cancel('User cancelled') } catch (err) {p.cancelSource.cancel(err)}
+          try { p.cancelSource.cancel('User cancelled') } catch (err) { p.cancelSource.cancel(err) }
         }
         return p.id !== id
       })
@@ -307,153 +307,138 @@ const Dropzone = ({ title, description, name, accept = '*', maxFiles = 3, formDa
       </div>
 
       <div className="w-full flex flex-col items-center">
-        {/* drop area */}
         <div
           onDrop={onDrop}
           onDragOver={(e) => { e.preventDefault(); e.stopPropagation(); }}
           onDragEnter={(e) => { e.preventDefault(); e.stopPropagation(); }}
-          className="relative w-[90%] sm:w-[80%] md:w-[85%] lg:w-[90%] border-2 border-dashed rounded-lg border-amber-700 cursor-pointer transition-all duration-200 bg-white p-4"
-          style={{ minHeight: 130 }}
-          role="button"
-          tabIndex={0}
-          onKeyDown={(e) => { if (e.key === 'Enter') inputRef.current?.click() }}
+          className="relative w-[90%] sm:w-[80%] md:w-[85%] lg:w-[90%] border-2 border-dashed rounded-lg border-amber-700 bg-white p-4"
+          style={{ minHeight: 250 }}
         >
+          {/* Top Controls (Upload All / Clear) - Only if files exist */}
+          {files.length > 0 && (
+            <div className="absolute top-3 right-3 z-20 flex gap-2">
+              <button
+                type="button"
+                onClick={uploadAll}
+                disabled={files.filter(f => f.status === 'ready').length === 0}
+                className="bg-green-600 text-white px-3 py-1 rounded text-xs disabled:opacity-50 hover:bg-green-700 transition"
+              >
+                Upload All
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                className="bg-red-500 text-white px-3 py-1 rounded text-xs hover:bg-red-600 transition"
+              >
+                Clear
+              </button>
+            </div>
+          )}
+
+          {/* If no files, show the large click/drag prompt (clickable) */}
+          {files.length === 0 && (
+            <div
+              className="absolute inset-0 flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 transition"
+              onClick={() => inputRef.current?.click()}
+            >
+              <p className="text-gray-700 text-sm font-medium px-3 py-1 rounded-md">Click to upload or drag and drop</p>
+              <span className="text-gray-500 text-xs mt-1">.PDF, .JPG, .JPEG, .PNG up to {MAX_FILE_MB} MB</span>
+              <div className="text-gray-500 text-xs mt-2">Allowed: {accept}</div>
+            </div>
+          )}
+
           <input
             ref={inputRef}
             type="file"
             multiple
             accept={accept}
             onChange={onBrowse}
-            className="absolute inset-0 opacity-0 w-full h-full cursor-pointer"
-            title="Click to upload"
+            className="hidden" // Hidden input, controlled by custom clicks
           />
 
-          <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none">
-            <p className="text-gray-700 text-sm font-medium px-3 py-1 rounded-md">Click to upload or drag and drop</p>
-            <span className="text-gray-500 text-xs mt-1">.PDF, .JPG, .JPEG, .PNG up to {MAX_FILE_MB} MB</span>
-            <div className="text-gray-500 text-xs mt-2">Allowed: {accept}</div>
-          </div>
+          {/* Grid Layout for Files */}
+          <div className="grid grid-cols-3 gap-4 mt-10 mb-4 z-10 relative">
+            {/* If files exist, render them */}
+            {files.map((f, idx) => (
+              <div key={f.id} className="relative group border rounded-lg overflow-hidden h-32 bg-gray-50 shadow-sm">
 
-          {/* top-right controls overlay */}
-          <div className="absolute top-3 right-3 flex gap-2 pointer-events-auto">
-             <button
-              type="button"
-              onClick={uploadAll}
-              disabled={files.filter(f => f.status === 'ready').length === 0}
-              className="bg-green-600 text-white px-3 py-1 rounded text-xs disabled:opacity-50"
-            >
-              Upload All
-            </button>
-            <button
-              type="button"
-              onClick={clearAll}
-              className="bg-red-500 text-white px-3 py-1 rounded text-xs"
-            >
-              Clear
-            </button>
-          </div>
-        </div>
-
-        {/* selected files list */}
-        <div className="w-[90%] sm:w-[80%] md:w-[85%] lg:w-[90%] mt-4 grid gap-3">
-          {files.length === 0 && (
-            <div className="text-sm text-gray-500">No files selected</div>
-          )}
-
-          {files.map((f, idx) => (
-            <div key={f.id} className="flex items-center gap-3 bg-white p-2 rounded shadow-sm border">
-              {/* preview */}
-              <div className="w-[72px] h-[52px] flex items-center justify-center bg-gray-50 border rounded overflow-hidden">
+                {/* Image Preview */}
                 {f.preview ? (
-                  <img src={f.preview} alt={f.file.name} className="object-cover w-full h-full" />
+                  <img src={f.preview} alt={f.file.name} className="w-full h-full object-cover" />
                 ) : (
-                  <div className="text-xs text-gray-500 px-2">{f.file.name.split('.').pop().toUpperCase()}</div>
+                  <div className="w-full h-full flex items-center justify-center text-xs text-gray-500 uppercase p-2 text-center bg-gray-100">
+                    {f.file.name.split('.').pop() || 'FILE'}
+                  </div>
                 )}
-              </div>
 
-              <div className="flex-1">
-                <div className="flex justify-between items-center">
-                  <div>
-                    <div className="font-medium text-sm">{f.file.name}</div>
-                    <div className="text-xs text-gray-500">{humanFileSize(f.file.size)}</div>
+                {/* Status Overlay */}
+                <div className="absolute inset-0 bg-black bg-opacity-40 flex flex-col justify-between p-2 opacity-0 group-hover:opacity-100 transition-opacity z-20">
+                  <div className="flex justify-end">
+                    <button
+                      onClick={(e) => { e.stopPropagation(); removeFile(f.id); }}
+                      className="bg-red-600 text-white w-6 h-6 rounded-full flex items-center justify-center text-xs hover:bg-red-700"
+                    >
+                      ✕
+                    </button>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    {f.status === 'done' && <div className="text-green-600 text-xs font-medium">Uploaded</div>}
-                    {f.status === 'uploading' && <div className="text-orange-600 text-xs font-medium">Uploading {f.progress}%</div>}
-                    {f.status === 'error' && <div className="text-red-600 text-xs font-medium">Error</div>}
+                  <div className="flex justify-center gap-2">
+                    {(f.status === 'ready' || f.status === 'error') && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); f.status === 'error' ? retryFile(idx) : uploadFile(f, idx); }}
+                        className="bg-blue-600 text-white text-[10px] px-2 py-1 rounded"
+                      >
+                        {f.status === 'error' ? 'Retry' : 'Upload'}
+                      </button>
+                    )}
                   </div>
                 </div>
 
-                {/* progress */}
-                <div className="mt-2">
-                  <div className="w-full bg-gray-200 h-2 rounded overflow-hidden">
-                    <div style={{ width: `${f.progress || 0}%` }} className={`h-2 ${f.status === 'done' ? 'bg-green-600' : 'bg-orange-600'} transition-all`} />
+                {/* Error Banner */}
+                {f.status === 'error' && (
+                  <div className="absolute bottom-0 left-0 w-full bg-red-600 bg-opacity-90 text-white text-[10px] p-1 truncate text-center z-10" title={f.error}>
+                    {f.error || 'Error'}
                   </div>
-                  {f.error && <div className="text-xs text-red-600 mt-1">{f.error}</div>}
-                </div>
-              </div>
-
-              {/* actions */}
-              <div className="flex flex-col gap-2 items-end">
-                {(f.status === 'ready' || f.status === 'error') && (
-                  <button
-                    onClick={() => {
-                      if (f.status === 'error') retryFile(idx)
-                      else uploadFile(f, idx)
-                    }}
-                    className="bg-blue-600 text-white px-3 py-1 rounded text-xs"
-                  >
-                    {f.status === 'error' ? 'Retry' : 'Upload'}
-                  </button>
                 )}
 
-                {f.status === 'uploading' && (
-                  <button
-                    onClick={() => {
-                      // cancel the request
-                      if (f.cancelSource) {
-                        try { f.cancelSource.cancel('Cancelled by user') } catch (err) {f.cancelSource.cancel(err)}
-                      }
-                      removeFile(f.id)
-                    }}
-                    className="bg-yellow-500 text-white px-3 py-1 rounded text-xs"
-                  >
-                    Cancel
-                  </button>
+                {/* Progress Bar (Only if uploading or done, NOT error) */}
+                {(f.status === 'uploading' || f.status === 'done') && (
+                  <div className="absolute bottom-0 left-0 w-full h-1 bg-gray-200">
+                    <div
+                      style={{ width: `${f.progress}%` }}
+                      className={`h-full ${f.status === 'done' ? 'bg-green-500' : 'bg-orange-500'}`}
+                    />
+                  </div>
                 )}
 
-                <button onClick={() => removeFile(f.id)} className="text-xs text-red-600 underline">
-                  Remove
-                </button>
               </div>
-            </div>
-          ))}
+            ))}
 
-          {/* overall progress for this zone */}
-          {files.length > 0 && (
-            <div className="mt-2">
-              <div className="text-xs text-gray-500 mb-1">Overall progress: {overallProgress}%</div>
-              <div className="w-full bg-gray-200 h-2 rounded overflow-hidden">
-                <div style={{ width: `${overallProgress}%` }} className="h-2 bg-gradient-to-r from-orange-500 to-orange-300 transition-all" />
+            {/* Add More Button (as a grid item) if files < maxFiles and files.length > 0 */}
+            {files.length > 0 && files.length < maxFiles && (
+              <div
+                onClick={() => inputRef.current?.click()}
+                className="h-32 border-2 border-dashed border-gray-300 rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-gray-50 text-gray-400 hover:text-gray-600 transition"
+              >
+                <span className="text-2xl">+</span>
+                <span className="text-xs">Add</span>
               </div>
-            </div>
-          )}
+            )}
 
-          {/* uploaded files recorded in parent (links) */}
-          <div className="mt-3">
-            <div className="text-xs text-gray-600 mb-1">Uploaded files:</div>
-            <div className="flex flex-wrap gap-2">
-              {(Array.isArray(formData[name]) ? formData[name] : []).map((u) => (
-                <a key={u.id || u.url || u.name} href={u.url || '#'} target="_blank" rel="noreferrer" className="px-2 py-1 bg-gray-100 rounded text-xs border">
-                  {u.name || u.url}
-                </a>
-              ))}
+          </div>
 
-              {(Array.isArray(formData[name]) && formData[name].length === 0) && <div className="text-xs text-gray-400">No uploaded files yet</div>}
+        </div>
+
+        {/* uploaded files links (optional, kept for record) */}
+        {files.length > 0 && overallProgress > 0 && overallProgress < 100 && (
+          <div className="w-[90%] sm:w-[80%] md:w-[85%] lg:w-[90%] mt-2">
+            <div className="text-xs text-black mb-1">Total Progress: {overallProgress}%</div>
+            <div className="w-full bg-gray-200 h-1.5 rounded overflow-hidden">
+              <div style={{ width: `${overallProgress}%` }} className="h-full bg-orange-500 transition-all" />
             </div>
           </div>
-        </div>
+        )}
+
       </div>
     </div>
   )

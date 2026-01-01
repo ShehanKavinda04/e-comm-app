@@ -1,5 +1,7 @@
 import React, { useState } from 'react'
 import axios from 'axios'
+import { useNavigate } from 'react-router-dom'
+import toast from 'react-hot-toast'
 import Step1 from './Seller-Component/Step1'
 import Step2 from './Seller-Component/Step2'
 import Step3 from './Seller-Component/Step3'
@@ -17,6 +19,7 @@ const SelectIconDetails = [
 ]
 
 const Seller = () => {
+  const navigate = useNavigate()
   const [section, setSection] = useState(1)
   const [formData, setFormData] = useState({
     fullName: '',
@@ -61,6 +64,12 @@ const Seller = () => {
       return
     }
 
+    // Step 4 Validation
+    if (!formData.bankName || !formData.accountHolderName || !formData.bankAccountNumber || !formData.branchName) {
+      setSubmitError('All Financial Information (Step 4) is required.')
+      return
+    }
+
     const payload = new FormData()
     Object.keys(formData).forEach(key => {
       const val = formData[key]
@@ -77,7 +86,7 @@ const Seller = () => {
       setUploadProgress(0)
 
       // Replace this URL with your actual backend endpoint
-      const url = '/api/seller' 
+      const url = '/api/seller'
 
       const response = await axios.post(url, payload, {
         headers: {
@@ -97,8 +106,13 @@ const Seller = () => {
       // handle success
       console.log('Upload success', response.data)
       setUploadProgress(100)
-      // TODO: show success message, navigate, or reset form
-      alert('Upload successful')
+
+      toast.success('Registration Submitted Successfully!')
+      // Short delay to let them see the progress bar complete/toast
+      setTimeout(() => {
+        navigate('/')
+      }, 1500)
+
     } catch (err) {
       console.error('Upload failed', err)
       setSubmitError(err?.response?.data?.message || err.message || 'Upload failed')
@@ -109,8 +123,24 @@ const Seller = () => {
     }
   }
 
+  // Helper to check validity for button visibility
+  const isStepValid = () => {
+    if (section === 1) {
+      return formData.fullName && formData.phoneNumber && formData.email && formData.physicalAddress
+    }
+    if (section === 2) {
+      return formData.businessName && formData.businessType && formData.businessDescription
+    }
+    if (section === 3) {
+      return formData.nicNumber && formData.nicDocument && formData.proofOfAddress
+    }
+    return true
+  }
+
+  // Removed handleNextStep as button visibility now controls flow
+
   return (
-    <div className='lg:pt-[110px] md:pt-[140px] sm:pt-[185px] w-full ms:h-full md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300'>
+    <div className='lg:pt-[110px] md:pt-[140px] sm:pt-[185px] w-full min-h-screen bg-gray-300 pb-10'>
       {/* top section */}
       <div className='flex flex-col ml-6 '>
         <p className='text-black text-4xl '>Ready to Become a Seller!</p>
@@ -120,10 +150,47 @@ const Seller = () => {
       <div className='h-[1px] w-full my-5 bg-black' />
 
       <div>
-        <div className='grid lg:grid-cols-4 md:grid-cols-2 sm:grid-cols-2 gap-3'>
-          {SelectIconDetails.map(({ Icon, title, subtitle }, index) => (
-            <SelectIcon key={index} Icon={Icon} title={title} subtitle={subtitle} active={section === index + 1} />
-          ))}
+        <div className='flex items-center justify-between px-10 mb-8'>
+          {SelectIconDetails.map(({ Icon, title, subtitle }, index) => {
+            const stepNumber = index + 1
+            const isActive = section === stepNumber
+            const isCompleted = section > stepNumber
+
+            return (
+              <React.Fragment key={index}>
+                <div className='flex items-center gap-3'>
+                  <div
+                    className={`
+                    w-21 h-21 rounded-full flex items-center justify-center font-bold text-white transition-all duration-300
+                    ${isActive || isCompleted ? 'bg-[#D01818]' : 'bg-black'}
+                  `}
+                  >
+                    <Icon sx={{
+                      fontSize: "45px"
+                    }} />
+                  </div>
+                  <div className='flex flex-col'>
+                    <span
+                      className={`font-bold text-lg ${isActive || isCompleted ? 'text-[#D01818]' : 'text-black'}`}
+                    >
+                      {title}
+                    </span>
+                    <span className='text-xs text-gray-500 font-medium whitespace-nowrap'>{subtitle}</span>
+                  </div>
+                </div>
+
+                {/* Connector Line (except after last item) */}
+                {index < SelectIconDetails.length - 1 && (
+                  <div className='flex-1 mx-4 h-[2px] bg-gray-300 relative'>
+                    <div
+                      className='absolute top-0 left-0 h-full bg-[#D01818] transition-all duration-500'
+                      style={{ width: isCompleted ? '100%' : '0%' }}
+                    />
+                  </div>
+                )}
+              </React.Fragment>
+            )
+          })}
         </div>
 
         <form onSubmit={handleFinalSubmit}>
@@ -131,7 +198,9 @@ const Seller = () => {
             <div className='bg-white m-7'>
               <Step1 formData={formData} onChange={handleChange} />
               <div className='flex justify-end  mt-11 mr-10'>
-                <button type='button' disabled={isSubmitting} className='bg-orange-600 px-5 py-1 rounded mb-9' onClick={() => setSection(2)}>Next Step</button>
+                {isStepValid() && (
+                  <button type='button' disabled={isSubmitting} className='bg-orange-600 px-5 py-1 rounded mb-9' onClick={() => setSection(2)}>Next Step</button>
+                )}
               </div>
             </div>
           }
@@ -141,7 +210,9 @@ const Seller = () => {
               <Step2 formData={formData} onChange={handleChange} />
               <div className='flex justify-between mt-10 mx-10'>
                 <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(1)}>Previous</button>
-                <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(3)}>Next Step</button>
+                {isStepValid() && (
+                  <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(3)}>Next Step</button>
+                )}
               </div>
             </div>
           }
@@ -151,7 +222,9 @@ const Seller = () => {
               <Step3 formData={formData} onChange={handleChange} />
               <div className='flex justify-between mt-22 mx-10'>
                 <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(2)}>Previous</button>
-                <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(4)}>Next Step</button>
+                {isStepValid() && (
+                  <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(4)}>Next Step</button>
+                )}
               </div>
             </div>
           }
@@ -193,17 +266,3 @@ const Seller = () => {
 
 export default Seller
 
-// eslint-disable-next-line
-const SelectIcon = ({ Icon, title, subtitle, active }) => {
-  return (
-    <div className={`flex gap-3 mx-7 ${active ? 'opacity-100' : 'opacity-60'}`}>
-      <div className={`border px-4 py-2 flex items-center rounded-full w-[55px] h-[55px] ${active ? 'bg-black' : 'bg-gray-500'}`}>
-        <Icon className='text-white text-3xl w-full' />
-      </div>
-      <div className='flex flex-col'>
-        <p className='text-black font-bold text-[17px]' >{title}</p>
-        <p className='text-black'>{subtitle}</p>
-      </div>
-    </div>
-  )
-}

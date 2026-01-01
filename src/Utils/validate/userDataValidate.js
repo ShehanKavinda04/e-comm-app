@@ -1,59 +1,50 @@
 import { capitalCher, numberCher, simpleCher, symbolCher } from "./valiDateChar";
 
-const userDataValidate = (data, setErrorMsg, setError, setCanSubmit,errorMsgBase,) => {
+/**
+ * userDataValidate(data, [setErrorMsg], [setError], [setCanSubmit], errorMsgBase)
+ * - errorMsgBase: "username" | "email" | "address" | "phone" | undefined
+ * - Returns { valid: boolean, errors: string[] }
+ *
+ * The function is forgiving and returns detailed errors; if setters are provided
+ * they are invoked similarly to other validators.
+ */
+const userDataValidate = (data, setErrorMsg, setError, setCanSubmit, errorMsgBase) => {
+  const value = String(data || "");
+  const errors = [];
+  const chars = value.split("");
 
- const userData = String(data).split("");
+  let validCharSet = [...simpleCher, ...capitalCher, " "];
 
- const tempErrorMsg = []
-     let finalUserDataValidResult= true
+  if (errorMsgBase === "username") {
+    validCharSet = [...validCharSet, ...numberCher, "_", ".", "-", ...simpleCher];
+  } else if (errorMsgBase === "email") {
+    // email local part & domain characters (will be further validated by emailValidate)
+    validCharSet = [...validCharSet, ...numberCher, ".", "@", ...symbolCher];
+  } else if (errorMsgBase === "phone") {
+    validCharSet = [...numberCher, "+", "-", " ", "(", ")"];
+  } else if (errorMsgBase === "address") {
+    validCharSet = [...validCharSet, ...numberCher, "/", ",", ".", "-", "(", ")"];
+  }
 
-     const userUserDataValidChar = []
-     let validChar = simpleCher.concat([...capitalCher, " "])
+  // empty check
+  if (!value.trim()) {
+    errors.push(`${errorMsgBase || "value"} is required.`);
+  } else {
+    for (let ch of chars) {
+      if (!validCharSet.includes(ch)) {
+        errors.push(`${errorMsgBase || "value"} contains invalid character(s).`);
+        break;
+      }
+    }
+  }
 
-    //  if(type==='address'){
-    //   validChar = validChar.concat([...numberCher,'/',',','.','-','(',')'])
-    // }else if(type==='phone'){
-    //   validChar = numberCher.concat(['+','-','(',')',' '])
-    // }else
-    if(errorMsgBase==='username'){
-      validChar = validChar.concat([...capitalCher,'_','.','-',...simpleCher, ' '])
-    }else if(errorMsgBase==='email'){
+  const result = { valid: errors.length === 0, errors };
 
-      const dataForCheck = String(data).split('@')
-  
-        if(dataForCheck.length===2){
-            validChar = validChar.concat([...capitalCher,'.',...simpleCher, ...symbolCher, ...numberCher])
-            console.log("validChar: ", validChar)
-          }
-        }        
-     
-     //USERNAME VALIDATION PROCESS
-    userData.forEach((char)=>{
-       let valid=false
-       validChar.forEach((vChar)=>{
-         if(char===vChar){
-           valid=true
-         }
-       })
-       userUserDataValidChar.push(valid)
-     })
- 
-     //SET FINAL RESULT FOR USERNAME VALIDATION
-     userUserDataValidChar.forEach((ele)=>{
-       if(!ele){
-         if(finalUserDataValidResult){
-           finalUserDataValidResult = false
-         }
-       }
-     })
-     if (!finalUserDataValidResult){
-       tempErrorMsg.push( 'userData is not valid')
-     }
-     if(tempErrorMsg.length> 0){
-            setError(true)
-            setCanSubmit(false)
-            setErrorMsg(tempErrorMsg)
-            
-        }
-}
+  if (typeof setErrorMsg === "function") setErrorMsg(errors);
+  if (typeof setError === "function") setError(!result.valid);
+  if (typeof setCanSubmit === "function") setCanSubmit(result.valid);
+
+  return result;
+};
+
 export default userDataValidate;

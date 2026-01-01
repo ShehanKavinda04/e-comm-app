@@ -1,73 +1,46 @@
+import { emailDomain, numberCher, simpleCher, capitalCher } from "./valiDateChar";
 
-import { emailDomain, numberCher, simpleCher } from "./valiDateChar"
+/**
+ * emailValidate(data, [setErrorMsg], [setError], [setCanSubmit])
+ * - Returns { valid: boolean, errors: string[] }
+ * - If setter functions are provided they will be called as well.
+ */
+const emailValidate = (data, setErrorMsg, setError, setCanSubmit) => {
+  const errors = [];
+  const value = String(data || "").trim();
 
-const emailValidate =(data , setErrorMsg, setError,setCanSubmit)=>{
-  
-
-  //EMAIL SETUP FOR VALIDATION 
-  const dataForCheck = String(data).split('@')
-
-  
-  if(dataForCheck.length===2){
-  //ERROR MESSAGE SETUP
-    const tempErrorMsg = []
-    let finalUsernameValidResult= true
-  //USER NAME VALIDATE SETUP
-    const usernameValidChar = []
-    const validChar = simpleCher.concat(numberCher)
-    const username = dataForCheck[0].split('')
-    
-    
-    //USERNAME VALIDATION PROCESS
-    username.forEach((char)=>{
-      let valid=false
-      validChar.forEach((vChar)=>{
-        if(char===vChar){
-          valid=true
-        }
-      })
-      usernameValidChar.push(valid)
-    })
-
-    //SET FINAL RESULT FOR USERNAME VALIDATION
-    usernameValidChar.forEach((ele)=>{
-      if(!ele){ 
-        if(finalUsernameValidResult){          
-          finalUsernameValidResult = false
+  if (!value) {
+    errors.push("Email is required.");
+  } else {
+    const parts = value.split("@");
+    if (parts.length !== 2) {
+      errors.push("Email must contain a single '@' character.");
+    } else {
+      const [local, domain] = parts;
+      if (!local) errors.push("Email username is empty.");
+      if (!domain) errors.push("Email domain is empty.");
+      // username validation: only allow letters and numbers and some characters
+      const validLocalChars = [...simpleCher, ...capitalCher, ...numberCher, ".", "_", "-"];
+      for (let ch of local) {
+        if (!validLocalChars.includes(ch)) {
+          errors.push("Email username contains invalid characters.");
+          break;
         }
       }
-    })
-    if (!finalUsernameValidResult){
-      tempErrorMsg.push('username is not valid')
+      // domain validation
+      if (!emailDomain.includes(domain)) {
+        errors.push("Email domain is not accepted.");
+      }
     }
-
-    //EMAIL VALIDATION SETUP
-    let emailDomainValidate = false
-
-    //EMAIL VALIDATION PROCESS
-    emailDomain.forEach((domain)=>{
-      if(domain === dataForCheck[1]){
-         if(!emailDomainValidate){ 
-          emailDomainValidate = true
-        }
-      }       
-    })
-
-    //SET FINAL RESULT FOR EMAIL VALIDATION 
-    if(!emailDomainValidate){
-      tempErrorMsg.push('domain is not valid')
-    }
-    //SET FINAL ERROR RESULT TO THE STATE-SETTER-FUNCTION
-    if(tempErrorMsg.length>0){
-      setError(true)
-      setCanSubmit(false)
-    }
-    setErrorMsg(tempErrorMsg)
-  }else{
-    setError(true)
-    setCanSubmit(false)
-    setErrorMsg(['not a validate email'])
   }
 
-}
-export default emailValidate
+  const result = { valid: errors.length === 0, errors };
+
+  if (typeof setErrorMsg === "function") setErrorMsg(errors);
+  if (typeof setError === "function") setError(!result.valid);
+  if (typeof setCanSubmit === "function") setCanSubmit(result.valid);
+
+  return result;
+};
+
+export default emailValidate;

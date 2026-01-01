@@ -114,3 +114,278 @@
 // }else{
 //   navigation('/404')            
 //   }
+
+
+
+
+// --------------User profile update -----------
+// import { useState } from 'react';
+// import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+// import { IconButton, Button, Switch, Typography } from '@mui/material';
+
+// const UserProfile = () => {
+//   const [isEditing, setIsEditing] = useState(false);
+//   const [profilePic, setProfilePic] = useState("https://wallpaperaccess.com/full/1456546.jpg");
+
+//   // User data state (in real app: fetch from API)
+//   const [user, setUser] = useState({
+//     fullName: 'Ayodya Senavirathne',
+//     email: 'ayodyasenavirathne@gmail.com',
+//     address: 'No.12/A Thalangama, Koswatta',
+//     phone: '+94712345678',
+//     nic: '2001145600553',
+//     role: 'Buyer',
+//     createdAt: '2025-05-12',
+//     displayName: 'Ayodya S.',           
+//     membership: 'Premium Buyer'
+    
+//   });
+  
+//   // Security settings state
+//   const [securitySettings, setSecuritySettings] = useState({
+//     twoFactorAuth: true,
+//     loginNotifications: true,
+//     hasSecurityQuestion: true,
+//     connectedDevices: 2,
+//   });
+
+//   const handleImageUpload = (e) => {
+//     const file = e.target.files[0];
+//     if (file) {
+//       const reader = new FileReader();
+//       reader.onloadend = () => {
+//         setProfilePic(reader.result);
+//       };
+//       reader.readAsDataURL(file);
+//     }
+//   };
+
+//   const handleSave = () => {
+//     setIsEditing(false);
+//     console.log('Updated user:', user);
+//   };
+
+//    const toggle2FA = () => {
+//     setSecuritySettings(prev => ({ ...prev, twoFactorAuth: !prev.twoFactorAuth }));
+//   };
+
+//   const toggleLoginNotifications = () => {
+//     setSecuritySettings(prev => ({ ...prev, loginNotifications: !prev.loginNotifications }));
+//   };
+
+//   const handleManageDevices = () => {
+//     alert('Redirect to Connected Devices management page (in real app)');
+//   };
+
+//   const handleChangeSecurityQuestion = () => {
+//     alert('Open modal to change security question (in real app)');
+//   };
+
+//   return (
+//     <div className='text-black min-h-screen '>
+//       <div className='px-5 mt-3 lg:px-30 md:px-15' >
+//         <div>
+//           <h1 className='text-3xl text-black font-semibold mb-10'>Account</h1>
+
+//           {/* Profile Header */}
+//           <div className='bg-white p-7 rounded shadow-md w-full h-auto flex flex-col justify-start '>
+//             <div className='mb-5'>
+//               <div className='flex flex-row items-center md:flex-row md:items-start gap-15 mx-4 my-2'>
+//                 <div className="relative">
+//               <img
+//                 src={profilePic}
+//                 alt="Profile"
+//                 className="w-40 h-40 rounded-full object-cover border-4 border-gray-200"
+//               />
+//               <label htmlFor="photo-upload">
+//                 <IconButton
+//                   component="span"
+//                   sx={{
+//                     position: 'absolute',
+//                     bottom: 0,
+//                     right: 0,
+//                     backgroundColor: 'white',
+//                     boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+//                     '&:hover': { backgroundColor: '#f0f0f0' },
+//                   }}
+//                 >
+//                   <PhotoCameraIcon sx={{ color: '#1976d2' }} />
+//                 </IconButton>
+//               </label>
+//               <input
+//                 id="photo-upload"
+//                 type="file"
+//                 accept="image/*"
+//                 onChange={handleImageUpload}
+//                 className="hidden"
+//               />
+//             </div>
+//                 <div className='flex flex-col justify-center mt-2  '>
+//                   <p className=' text-black font-semibold text-2xl'>{user.fullName}</p>
+//                   <div className="flex flex-col sm:flex-row items-center gap-3 mt-2">
+//                     <a
+//                       href={`mailto:${user.email}`}
+//                       className="text-blue-800 underline text-sm font-medium"
+//                     >
+//                       {user.email}
+//                     </a>
+//                     <span className="text-gray-600 text-sm">— {user.role}</span>
+//                   </div>
+//                 </div>
+//               </div> 
+
+//               {/* Editable Personal Details */}
+//               <div className=' mt-5 mb-10 '>
+//                 <div >
+//                   <div className="flex justify-between items-center mb-6">
+//                     <h3 className="text-lg font-semibold text-black">Personal Details</h3>
+//                     <Button
+//                       variant="contained"
+//                       onClick={() => (isEditing ? handleSave() : setIsEditing(true))}
+//                       sx={{ textTransform: 'none' }}
+//                     >
+//                       {isEditing ? 'Save Changes' : 'Edit Details'}
+//                     </Button>
+//                   </div>
+//                   <div className="grid grid-cols- md:grid-cols-2 gap-6">
+//                     {[
+//                       { label: 'Full Name', key: 'fullName' },
+//                   { label: 'Address', key: 'address' },
+//                   { label: 'Phone', key: 'phone' },
+//                   { label: 'NIC', key: 'nic' },
+//                   { label: 'Role', key: 'role' },
+//                   { label: 'Email', key: 'email', type: 'email' },                      
+//                     ].map(({ label, key, type = 'text' }) => (
+//                       <div key={key}>
+//                         <div className="flex gap-3 mb-1">
+//                           <label className="block text-sm font-medium text-gray-700 mb-1">
+//                             {label}:
+//                           </label>
+//                           {isEditing ? (
+//                             <input
+//                               type={type}
+//                               value={user[key]}
+//                               onChange={(e) =>
+//                                 setUser({ ...user, [key]: e.target.value })
+//                               }
+//                               className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+//                             />
+//                           ) : (
+//                             <p className="text-gray-900">{user[key]}</p>
+//                           )}
+//                         </div>
+//                       </div>
+//                     ))}
+//                   </div>
+//                 </div>
+//               </div>
+
+//               {/* Account and Security Details */}
+//               <div className="grid grid-cols-2 mt-25 md:grid-cols-2 gap-12">
+//                 <div>
+//                   <h3 className="text-lg font-semibold text-black mb-4">Account Info</h3>
+//                   <div className="space-y-3 text-sm">
+//                     <div className="flex gap-3">
+//                       <span className="text-gray-600">Display Name:</span>
+//                       <span className="text-black font-medium">{user.displayName}</span>
+//                     </div>
+//                     <div className="flex gap-3">
+//                       <span className="text-gray-600">Account Created:</span>
+//                       <span className="text-black font-medium">
+//                         {new Date(user.createdAt).toLocaleDateString('en-US', {
+//                         year: 'numeric',
+//                         month: 'long',
+//                         day: 'numeric'
+//                       })}
+//                       </span>
+//                     </div>
+//                     <div className="flex gap-3">
+//                       <span className="text-gray-600">Verification:</span>
+//                       <span className="text-green-600 font-medium">Verified</span>
+//                     </div>
+//                     <div className="flex gap-3">
+//                       <span className="text-gray-600">Membership:</span>
+//                       <span className="text-orange-600 font-medium">{user.membership}</span>
+//                     </div>
+//                   </div>
+//                 </div>
+//                 <div>
+//                   <h3 className="text-lg font-semibold mb-4">Security Settings</h3>
+//                   <div className="space-y-5">
+//                     {/* Two-Factor Authentication */}
+//                     <div className="flex items-center justify-between">
+//                       <div>
+//                         <Typography className="text-gray-700 font-medium">Two-Factor Authentication</Typography>
+//                         <Typography variant="caption" className="text-gray-500">
+//                           Add an extra layer of security to your account
+//                         </Typography>
+//                       </div>
+//                       <Switch
+//                         checked={securitySettings.twoFactorAuth}
+//                         onChange={toggle2FA}
+//                         color="primary"
+//                       />
+//                     </div>
+
+//                     {/* Login Notifications */}
+//                     <div className="flex items-center justify-between">
+//                       <div>
+//                         <Typography className="text-gray-700 font-medium">Login Notifications</Typography>
+//                         <Typography variant="caption" className="text-gray-500">
+//                           Get alerted on new logins
+//                         </Typography>
+//                       </div>
+//                       <Switch
+//                         checked={securitySettings.loginNotifications}
+//                         onChange={toggleLoginNotifications}
+//                         color="primary"
+//                       />
+//                     </div>
+
+//                     {/* Security Question */}
+//                     <div className="flex items-center justify-between">
+//                       <div>
+//                         <Typography className="text-gray-700 font-medium">Security Question</Typography>
+//                         <Typography variant="caption" className="text-gray-500">
+//                           {securitySettings.hasSecurityQuestion ? 'Set' : 'Not set'}
+//                         </Typography>
+//                       </div>
+//                       <Button
+//                         size="small"
+//                         variant="outlined"
+//                         onClick={handleChangeSecurityQuestion}
+//                         sx={{ textTransform: 'none' }}
+//                       >
+//                         {securitySettings.hasSecurityQuestion ? 'Change' : 'Set Up'}
+//                       </Button>
+//                     </div>
+
+//                     {/* Connected Devices */}
+//                     <div className="flex items-center justify-between">
+//                       <div>
+//                         <Typography className="text-gray-700 font-medium">Connected Devices</Typography>
+//                         <Typography variant="caption" className="text-gray-500">
+//                           {securitySettings.connectedDevices} active sessions
+//                         </Typography>
+//                       </div>
+//                       <Button
+//                         size="small"
+//                         variant="outlined"
+//                         onClick={handleManageDevices}
+//                         sx={{ textTransform: 'none' }}
+//                       >
+//                         Manage
+//                       </Button>
+//                     </div>
+//                   </div>
+//                 </div>
+//               </div>              
+//             </div>
+//           </div>
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
+// export default UserProfile

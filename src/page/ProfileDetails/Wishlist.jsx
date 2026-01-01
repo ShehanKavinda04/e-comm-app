@@ -1,69 +1,107 @@
-import React from 'react'
+import React, { useState, useEffect, useContext } from 'react'
 import FavoriteIcon from '@mui/icons-material/Favorite';
 import { IconButton } from '@mui/material';
-
-const itemDetails =[
-  {
-    imgUrl:"https://cdn.gadgetbytenepal.com/wp-content/uploads/2024/09/iPhone-16-Pink.jpg",
-    name:'Apple',
-    product:'Phone Screen',    
-    mark:'Rating',
-    reviews:'124 reviews',    
-    title:'iPhone 14 Pro Max OLD Display Assemble ',
-    price:'12500',    
-  }
-]
-
+import { AuthContext } from '../../Contexts/AuthContext';
+import { getWishlist, removeFromWishlist } from '../../Services/MockDataService';
+import { useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
+import { cartActions } from '../../Store/ReduxSlice/cartSlice';
 
 const Wishlist = () => {
+  const { user } = useContext(AuthContext);
+  const [wishlist, setWishlist] = useState([]);
+  const navigate = useNavigate();
+  const dispatch = useDispatch();
+
+  useEffect(() => {
+    if (user) {
+      // Fallback ID 1 for test user logic if user.id is missing in some contexts
+      const items = getWishlist(user.id || 1);
+      setWishlist(items);
+    }
+  }, [user]);
+
+  const handleRemove = (itemId) => {
+    const updatedList = removeFromWishlist(user?.id || 1, itemId);
+    setWishlist(updatedList);
+  };
+
+  const handleAddToCart = (item) => {
+    dispatch(cartActions.addToCart({
+      id: item.id,
+      title: item.name,
+      imgUrl: item.image,
+      price: item.price
+    }));
+    // Optional: Navigate to cart or show success message
+    //For now, we'll keep it simple as user asked for "click to add" work
+    alert(`Added ${item.name} to Cart!`);
+  };
+
+  if (!user) {
+    return <div className="text-center mt-10">Please log in to view your wishlist.</div>;
+  }
+
+  if (wishlist.length === 0) {
+    return <div className="text-center mt-10 text-xl text-gray-500">Your wishlist is empty.</div>;
+  }
+
   return (
-    <div className='mt-3 p-1 sm:px-6 md:px-12 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6  ml-1 place-items-center '>
-      {itemDetails.map(({imgUrl,name,product,mark,reviews,title,price},index)=><CategoryItem key={index} 
-      imgUrl={imgUrl} name={name} product={product} mark={mark} reviews={reviews}
-      title={title} price={price}  />)}
+    <div className='mt-5 px-4 flex flex-wrap justify-center gap-8 mb-10'>
+      {wishlist.map((item, index) => (
+        <CategoryItem
+          key={item.id || index}
+          item={item}
+          onRemove={() => handleRemove(item.id)}
+          onAddToCart={() => handleAddToCart(item)}
+        />
+      ))}
     </div>
   )
 }
 
 export default Wishlist
 
-const CategoryItem = ({imgUrl,name,product,mark,reviews,title,price })=>{
-   return( 
-    
-    <div className='bg-amber-50 w-[280px]  h-[450px] shadow-md flex flex-col items-center '>
-      <div >
-          <div className='w-full py-2 flex justify-center relative'>
-            <img src={imgUrl} alt={name} className="max-h-[220px] object-contain"/>            
-              <FavoriteIcon sx={{
-                  color:"black",                  
-                  marginTop:"5px",
-                  top:"200px",
-                  left:"230px",
-                  fontSize:"25px",
-                  padding:"0",
-                  position:"absolute",
-                  ":active":{
-                    color:"red",
-                  }                  
-              }}/>             
-          </div>
-          <div className='flex gap-30 justify-center '>
-            <p className='text-black text-sm  ' >{name}</p>
-            <p className='text-black text-sm'>{product}</p>
-          </div>
-          <p className='px-4 mt-2 mb-1 text-xl sm:text-2xl text-black'>{title} </p>
-          <div className='flex gap-2 ml-5'>
-            <p className='text-black text-[13px]'>{mark}</p>
-            <p className='text-black text-[12px]'>({reviews})</p>
-          </div>
-          <div className='px-7 mt-4 mb-4'>
-            <p className='text-red-500 text-[18px] font-bold'>Rs. {price}</p>
-          </div>        
+const CategoryItem = ({ item, onRemove, onAddToCart }) => {
+  return (
+
+    <div className='bg-amber-50 w-[280px]  h-[420px] shadow-md flex flex-col items-center justify-between pb-4 rounded-lg overflow-hidden'>
+      <div className='w-full'>
+        <div className='w-full py-2 flex justify-center relative bg-white h-[220px] items-center'>
+          <img src={item.image} alt={item.name} className="max-h-[200px] max-w-[90%] object-contain" />
+          <FavoriteIcon
+            onClick={onRemove}
+            sx={{
+              color: "red",
+              marginTop: "5px",
+              top: "10px",
+              right: "10px",
+              fontSize: "30px",
+              padding: "0",
+              position: "absolute",
+              cursor: "pointer",
+              transition: "transform 0.2s",
+              ":hover": {
+                transform: "scale(1.1)",
+              }
+            }} />
+        </div>
+        <div className='flex justify-between px-4 mt-3 text-gray-500 text-xs font-semibold uppercase tracking-wide'>
+          <p>{item.category || 'Product'}</p>
+          <p>In Stock</p>
+        </div>
+        <p className='px-4 mt-1 mb-1 text-lg font-bold text-gray-800 leading-tight line-clamp-2 h-[50px]'>{item.name}</p>
+        <div className='px-4 mt-2'>
+          <p className='text-orange-600 text-xl font-bold'>Rs. {item.price}</p>
+        </div>
       </div>
       <div>
-          <button className='bg-orange-500 w-[245px] cursor-pointer' >Add to Card </button>
-        </div>
+        <button
+          onClick={onAddToCart}
+          className='bg-orange-600 text-white font-semibold py-2 w-[245px] rounded-lg hover:bg-orange-700 transition-colors shadow-sm' >
+          Add to Cart
+        </button>
+      </div>
     </div>
-    )
-
+  )
 }
