@@ -4,10 +4,6 @@ import { SellerInput } from './Step1'
 const Step4 = ({ formData, onChange }) => {
   return (
     <div>
-      <div className='flex flex-col items-center'>
-        <p className='text-black text-2xl font-medium mt-5' >Financial Information</p>
-        <p className='text-gray-800 '>Please provide your bank details</p>
-      </div>
 
       <div className='w-[90%] border-2 border-blue-700 flex gap-3 sm:mx-9 md:mx-12 lg:mx-15 rounded-xl px-7 py-2 bg-blue-200 my-5'>
         <div className='border-2 flex justify-center items-center border-blue-700 w-[40px] h-[40px] rounded-full p-1'>
@@ -19,11 +15,44 @@ const Step4 = ({ formData, onChange }) => {
         </div>
       </div>
 
-      <div className='flex flex-col items-center gap-4'>
-        <SellerInput textLabel='Bank Name:' type='text' name='bankName' value={formData.bankName} onChange={onChange} />
-        <SellerInput textLabel='Account Holder Name:' type='text' name='accountHolderName' value={formData.accountHolderName} onChange={onChange} />
-        <SellerInput textLabel='Bank Account Number:' type='text' name='bankAccountNumber' value={formData.bankAccountNumber} onChange={onChange} />
-        <SellerInput textLabel='Branch Name:' type='text' name='branchName' value={formData.branchName} onChange={onChange} />
+      <div className='flex flex-col items-center gap-6 mt-4'>
+        <SellerInput 
+          textLabel='Bank Name:' 
+          type='text' 
+          name='bankName' 
+          value={formData.bankName} 
+          onChange={onChange} 
+          placeholder="e.g. Bank of Ceylon, HNB, etc."
+        />
+        <div className='w-[90%]'>
+          <SellerInput 
+            textLabel='Account Holder Name:' 
+            type='text' 
+            name='accountHolderName' 
+            value={formData.accountHolderName} 
+            onChange={onChange} 
+            placeholder="Must EXACTLY match your Full Name from Step 1"
+          />
+          {formData.accountHolderName && formData.fullName && formData.accountHolderName.trim().toLowerCase() !== formData.fullName.trim().toLowerCase() && (
+            <p className='text-red-500 text-xs mt-1 font-medium'>Error: Name must match "{formData.fullName}"</p>
+          )}
+        </div>
+        <SellerInput 
+          textLabel='Bank Account Number:' 
+          type='text' 
+          name='accountNumber' 
+          value={formData.accountNumber} 
+          onChange={onChange} 
+          placeholder="8–20 digits"
+        />
+        <SellerInput 
+          textLabel='Branch Name:' 
+          type='text' 
+          name='branchName' 
+          value={formData.branchName} 
+          onChange={onChange} 
+          placeholder="e.g. Colombo Main, Kandy, etc."
+        />
       </div>
     </div>
   )

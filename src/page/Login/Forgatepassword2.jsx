@@ -1,7 +1,7 @@
 import { useState } from "react";
-import axios from "axios";
+import api from "../../Services/api";
 import { useNavigate } from "react-router-dom";
-import { toast } from "react-hot-toast"; // Optional: for nice notifications
+import { toast } from "react-hot-toast";
 
 const Forgatepassword2 = () => {
   const [email, setEmail] = useState("");
@@ -9,7 +9,7 @@ const Forgatepassword2 = () => {
   const [error, setError] = useState("");
   const navigate = useNavigate();
 
-  // List of common disposable email domains (you can expand this)
+  // List of common disposable email domains
   const blockedDomains = [
     "10minutemail.com",
     "tempmail.org",
@@ -37,7 +37,6 @@ const Forgatepassword2 = () => {
     setError("");
     setLoading(true);
 
-    // 1. Basic validation
     if (!email.trim()) {
       setError("Please enter your email");
       setLoading(false);
@@ -50,7 +49,6 @@ const Forgatepassword2 = () => {
       return;
     }
 
-    // 2. Block disposable emails
     if (isDisposableEmail(email)) {
       setError("Temporary email addresses are not allowed");
       setLoading(false);
@@ -58,23 +56,12 @@ const Forgatepassword2 = () => {
     }
 
     try {
-      // 3. Call backend to send OTP
-      const response = await axios.post(
-        "http://localhost:8080/api/auth/forgot-password",
-        { email },
-        { withCredentials: true }
-      );
-
-      if (response.data.success) {
-        toast.success("OTP sent to your email!");
-        // Pass email to OTP page
-        navigate("/otp", { state: { email } });
-      }
+      await api.post("/auth/forgot-password", { email });
+      toast.success("OTP sent to your email!");
+      navigate("/otp", { state: { email, purpose: "FORGOT_PASSWORD" } });
     } catch (err) {
       const msg = err.response?.data?.message || "Too many requests. Try again later.";
       setError(msg);
-
-      // Specific rate limit message
       if (err.response?.status === 429) {
         setError("Too many attempts. Please wait 15 minutes.");
       }
@@ -97,7 +84,7 @@ const Forgatepassword2 = () => {
                 value={email}
                 onChange={(e) => {
                   setEmail(e.target.value);
-                  setError(""); // Clear error on typing
+                  setError("");
                 }}
                 placeholder="you@example.com"
                 className="border-2 border-orange-600 w-full px-5 py-3 rounded-full focus:outline-none focus:border-orange-700 transition text-black placeholder-gray-500"
@@ -119,33 +106,12 @@ const Forgatepassword2 = () => {
                   : "bg-orange-600 hover:bg-orange-700 active:scale-95"
                 }`}
             >
-              {loading ? (
-                <span className="flex items-center justify-center gap-3">
-                  <svg className="animate-spin h-5 w-5" viewBox="0 0 24 24">
-                    <circle
-                      className="opacity-25"
-                      cx="12"
-                      cy="12"
-                      r="10"
-                      stroke="currentColor"
-                      strokeWidth="4"
-                    />
-                    <path
-                      className="opacity-75"
-                      fill="currentColor"
-                      d="M4 12a8 8 0 018-8v8z"
-                    />
-                  </svg>
-                  Sending OTP...
-                </span>
-              ) : (
-                "Request OTP"
-              )}
+              {loading ? "Sending..." : "Request OTP"}
             </button>
           </form>
 
           <p className="text-center text-gray-600 text-sm">
-            Remember your password?{" "}
+            Remember?{" "}
             <span
               onClick={() => navigate("/login")}
               className="text-orange-600 font-semibold cursor-pointer hover:underline"

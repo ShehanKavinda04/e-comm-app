@@ -7,11 +7,12 @@ const CreateCampaignModal = ({ isOpen, onClose, onSave }) => {
     const [duration, setDuration] = useState('7');
     const [image, setImage] = useState(null);
     const [error, setError] = useState('');
+    const [isLoading, setIsLoading] = useState(false);
     const fileInputRef = useRef(null);
 
     if (!isOpen) return null;
 
-    const handleSave = (e) => {
+    const handleSave = async (e) => {
         e.preventDefault();
         setError('');
 
@@ -23,29 +24,36 @@ const CreateCampaignModal = ({ isOpen, onClose, onSave }) => {
             setError('Please enter a valid budget');
             return;
         }
-
         if (!image) {
             setError('Please select an ad image');
             return;
         }
 
-        const newCampaign = {
-            title,
-            budget: parseFloat(budget),
-            duration: parseInt(duration),
-            clicks: "0",
-            impressions: "0",
-            status: "Active",
-            active: true,
-            image: image // Use real image data
-        };
+        setIsLoading(true);
+        try {
+            const newCampaign = {
+                title,
+                budget: parseFloat(budget),
+                duration: parseInt(duration),
+                clicks: "0",
+                impressions: "0",
+                status: "PAUSED",
+                active: false,
+                creativeUrl: image
+            };
 
-        onSave(newCampaign);
-        setTitle('');
-        setBudget('');
-        setDuration('7');
-        setImage(null);
-        onClose();
+            await onSave(newCampaign);
+            setTitle('');
+            setBudget('');
+            setDuration('7');
+            setImage(null);
+            if (fileInputRef.current) fileInputRef.current.value = "";
+        } catch (err) {
+            setError(err.response?.data?.message || 'Failed to launch campaign. Please try again.');
+            console.error(err);
+        } finally {
+            setIsLoading(false);
+        }
     };
 
     const handleImageChange = (e) => {
@@ -149,9 +157,18 @@ const CreateCampaignModal = ({ isOpen, onClose, onSave }) => {
                         </button>
                         <button
                             type="submit"
-                            className="px-6 py-2 bg-[#E65525] hover:bg-[#d0461e] text-white rounded-lg font-medium transition-colors shadow-sm"
+                            disabled={isLoading}
+                            className={`px-6 py-2 bg-[#E65525] hover:bg-[#d0461e] text-white rounded-lg font-medium transition-colors shadow-sm flex items-center gap-2 ${isLoading ? 'opacity-70 cursor-not-allowed' : ''}`}
                         >
-                            Launch Campaign
+                            {isLoading ? (
+                                <>
+                                    <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                    </svg>
+                                    Launching...
+                                </>
+                            ) : 'Launch Campaign'}
                         </button>
                     </div>
                 </form>

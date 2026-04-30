@@ -1,24 +1,32 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { getAllUsers, updateUser } from '../../../../Services/MockDataService';
+import api from "../../../../Services/api";
 import { ArrowLeft, Save } from "lucide-react";
+import toast from "react-hot-toast";
 
 const EditUser = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const [isLoading, setIsLoading] = useState(true);
   const [formData, setFormData] = useState({
     name: "",
     email: "",
     role: "Buyer",
-    status: "Active",
+    status: "ACTIVE",
   });
 
   useEffect(() => {
-    const users = getAllUsers();
-    const foundUser = users.find((u) => u.id === parseInt(id));
-    if (foundUser) {
-      setFormData(foundUser);
-    }
+    const fetchUser = async () => {
+      try {
+        const response = await api.get(`/admin/dashboard/users/${id}`);
+        setFormData(response.data);
+      } catch (error) {
+        console.error("Error fetching user for edit:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUser();
   }, [id]);
 
   const handleChange = (e) => {
@@ -26,12 +34,24 @@ const EditUser = () => {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    updateUser(parseInt(id), formData);
-    alert("User details updated successfully!");
-    navigate("/admin");
+    try {
+      await api.put(`/admin/dashboard/users/${id}`, formData);
+      toast.success("User details updated successfully!");
+      navigate("/admin");
+    } catch (err) {
+      toast.error("Failed to update user: " + (err.response?.data || err.message));
+    }
   };
+
+  if (isLoading) {
+    return (
+      <div className="p-6 flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen font-sans">
@@ -104,8 +124,9 @@ const EditUser = () => {
                 onChange={handleChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-black focus:border-transparent outline-none"
               >
-                <option value="Active">Active</option>
-                <option value="Inactive">Inactive</option>
+                <option value="ACTIVE">Active</option>
+                <option value="DISABLED">Inactive</option>
+                <option value="PENDING">Pending</option>
               </select>
             </div>
           </div>

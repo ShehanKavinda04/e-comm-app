@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect } from 'react';
 import { jwtDecode } from "jwt-decode";
 import api from '../Services/api';
 import { getAllUsers } from '../Services/MockDataService'; // Import mock users
+import { getUserProfile } from '../Services/userService';
 
 // eslint-disable-next-line react-refresh/only-export-components
 export const AuthContext = createContext();
@@ -13,15 +14,24 @@ export const AuthProvider = ({ children }) => {
 
   // Helper to merge token data with rich mock data
   const enrichUser = (decodedToken) => {
-    const allUsers = getAllUsers();
-    // Try to find by email
-    const foundUser = allUsers.find(u => u.email === decodedToken.sub || u.email === decodedToken.email);
-
-    // Fallback for users not in mock data (e.g. test@example.com)
-    return {
+    // Attempt to enrich with token data, but always prefer backend results later
+    const baseUser = {
       ...decodedToken,
-      image: "https://images.unsplash.com/photo-1633332755192-727a05c4013d?w=150&h=150&fit=crop"
+      fullName: decodedToken.fullName || decodedToken.name,
+      id: decodedToken.id || decodedToken.userId
     };
+
+    return {
+      ...baseUser,
+      // Only use the global default if NO image is provided in the token/session
+      image: decodedToken.image || decodedToken.profileImageUrl || null
+    };
+  };
+
+  // Helper to extract clean role from JWT (e.g., ["ROLE_SELLER"] -> "SELLER")
+  const extractRole = (decoded) => {
+    const raw = (decoded.roles && decoded.roles[0]) || (decoded.role) || "BUYER";
+    return raw.replace("ROLE_", "").toUpperCase();
   };
 
   useEffect(() => {
@@ -29,61 +39,44 @@ export const AuthProvider = ({ children }) => {
     if (token) {
       try {
         const decoded = jwtDecode(token);
-        const enriched = enrichUser(decoded); // Enrich
-        setUser({ ...enriched, token });
+        const role = extractRole(decoded);
+        const enriched = enrichUser(decoded);
+        setUser({ ...enriched, role, token });
       } catch (error) {
         console.error("Invalid token", error);
         localStorage.removeItem('token');
       }
     }
     setLoading(false);
+    if (token) refreshUser(); // Fetch latest from backend after initial load
   }, []);
 
   const login = async (email, password) => {
-    console.log("Attempting login with:", email, password); // Debug log
-
-    // Mock Login Logic for Test Accounts
-    const mockAccounts = {
-      "user@gmail.com": { pass: "User_01$", role: "BUYER" },
-      "seller@gmail.com": { pass: "Seller_01$", role: "SELLER" },
-      "admin@gmail.com": { pass: "Admin_01$", role: "ADMIN" }
-    };
-
-    if (mockAccounts[email]) {
-      console.log("Mock account found:", mockAccounts[email]);
-      if (mockAccounts[email].pass === password) {
-        console.log("Password matched for mock account");
-        const role = mockAccounts[email].role;
-        // Generate a mock JWT token (header.payload.signature)
-        const header = btoa(JSON.stringify({ alg: "HS256", typ: "JWT" }));
-        const payload = btoa(JSON.stringify({ sub: email, email, role, exp: Math.floor(Date.now() / 1000) + (60 * 60) }));
-        const token = `${header}.${payload}.mockSignature`;
-
-        localStorage.setItem('token', token);
-
-        const decoded = { sub: email, email, role };
-        const enriched = enrichUser(decoded);
-        setUser({ ...enriched, token });
-        return role.toUpperCase();
-      } else {
-        console.log("Password mismatch for mock account. Expected:", mockAccounts[email].pass, "Got:", password);
-      }
-    } else {
-      console.log("No mock account found for:", email);
-    }
+    console.log("Attempting login with:", email, password);
 
     try {
-      const response = await api.post('/api/login', { email, password });
-      const { token } = response.data;
-      localStorage.setItem('token', token);
-      const decoded = jwtDecode(token);
+      const response = await api.post('/auth/login', { email, password });
+      
+      // Check for 2FA requirement
+      if (response.data.twoFaRequired) {
+        return { 
+          twoFaRequired: true, 
+          email: response.data.email, 
+          message: response.data.message 
+        };
+      }
 
-      // Manually inject email if missing in decoded token for matching
+      const { accessToken } = response.data;
+      localStorage.setItem('token', accessToken);
+      const decoded = jwtDecode(accessToken);
+      const role = extractRole(decoded);
+
       if (!decoded.email) decoded.email = email;
 
-      const enriched = enrichUser(decoded); // Enrich
-      setUser({ ...enriched, token });
-      return decoded.role?.toUpperCase();
+      const enriched = enrichUser(decoded);
+      setUser({ ...enriched, role, token: accessToken });
+      
+      return { role };
     } catch (err) {
       console.error("Login API failed", err);
       throw err.response?.data?.message || 'Login failed';
@@ -92,16 +85,8 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (userData) => {
     try {
-      const response = await api.post('/api/register', userData);
-      const { token } = response.data;
-      localStorage.setItem('token', token);
-      const decoded = jwtDecode(token);
-
-      if (!decoded.email) decoded.email = userData.email;
-
-      const enriched = enrichUser(decoded); // Enrich
-      setUser({ ...enriched, token });
-      return decoded.role?.toUpperCase();
+      const response = await api.post('/auth/signup', userData);
+      return response.data; // Return full response for email/message
     } catch (err) {
       throw err.response?.data?.message || 'Registration failed';
     }
@@ -109,8 +94,12 @@ export const AuthProvider = ({ children }) => {
 
   // Allow updates to user profile (e.g. image)
   const updateUserProfile = (updates) => {
-    setUser(prev => ({ ...prev, ...updates }));
-    // In a real app, we would make an API call here to persist the update
+    console.log("Updating user profile in context:", updates);
+    setUser(prev => {
+      const newUser = { ...prev, ...updates };
+      console.log("New user state:", newUser);
+      return newUser;
+    });
   };
 
   const logout = () => {
@@ -118,8 +107,40 @@ export const AuthProvider = ({ children }) => {
     setUser(null);
   };
 
+  // Detect if the stored token is a real JWT or a mock one
+  const refreshUser = async () => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      try {
+        const data = await getUserProfile();
+        console.log("Refreshed user profile data from backend:", data); // Diagnostic log
+        const decoded = jwtDecode(token);
+        const role = extractRole(decoded);
+        
+        // Merge latest backend data with stable token identifiers
+        setUser(prev => {
+          const newUser = {
+            ...prev,
+            ...decoded,
+            ...data,
+            role, // Maintain standardized role
+            name: data.fullName || prev?.name || decoded.fullName,
+            fullName: data.fullName || prev?.fullName || decoded.fullName, 
+            displayName: data.displayName || prev?.displayName || decoded.displayName,
+            image: data.profileImageUrl !== undefined ? data.profileImageUrl : (prev?.image || decoded.image), 
+            id: prev?.id || decoded.id || decoded.userId
+          };
+          console.log("Updated AuthContext user state:", newUser); // Diagnostic log
+          return newUser;
+        });
+      } catch (err) {
+        console.error("Refresh user profile synchronization failed:", err);
+      }
+    }
+  };
+
   return (
-    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUserProfile }}>
+    <AuthContext.Provider value={{ user, login, register, logout, loading, updateUserProfile, refreshUser }}>
       {!loading && children}
     </AuthContext.Provider>
   );

@@ -1,9 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useParams, Link } from "react-router-dom";
-import { getAllUsers } from '../../../../Services/MockDataService';
+import api from "../../../../Services/api";
 import {
   ArrowLeft,
-  User,
+  User as UserIcon,
   Mail,
   Shield,
   CheckCircle,
@@ -13,15 +13,32 @@ import {
 const UserDetails = () => {
   const { id } = useParams();
   const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const users = getAllUsers();
-    const foundUser = users.find((u) => u.id === parseInt(id));
-    setUser(foundUser);
+    const fetchUser = async () => {
+      try {
+        const response = await api.get(`/admin/dashboard/users/${id}`);
+        setUser(response.data);
+      } catch (error) {
+        console.error("Error fetching user details:", error);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    fetchUser();
   }, [id]);
 
+  if (isLoading) {
+    return (
+      <div className="p-6 flex justify-center items-center h-screen bg-gray-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-black"></div>
+      </div>
+    );
+  }
+
   if (!user) {
-    return <div className="p-6">Loading or user not found...</div>;
+    return <div className="p-6 text-center text-gray-500">User not found.</div>;
   }
 
   return (
@@ -41,12 +58,12 @@ const UserDetails = () => {
         <div className="bg-white rounded-xl shadow-sm p-8 flex flex-col items-center text-center">
           <div className="relative mb-4">
             <img
-              src={user.image}
+              src={user.imageUrl || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.name)}
               alt={user.name}
               className="w-32 h-32 rounded-full object-cover border-4 border-gray-100"
             />
             <div className={`absolute bottom-2 right-2 w-6 h-6 rounded-full border-4 border-white 
-                    ${user.status === 'Active' ? 'bg-green-500' : 'bg-red-500'}`}>
+                    ${user.status === 'ACTIVE' ? 'bg-green-500' : 'bg-red-500'}`}>
             </div>
           </div>
           <h2 className="text-2xl font-bold text-gray-900 mb-1">{user.name}</h2>
@@ -66,7 +83,7 @@ const UserDetails = () => {
 
           <div className="space-y-6">
             <div className="flex items-start gap-4">
-              <User className="w-5 h-5 text-gray-400 mt-1" />
+              <UserIcon className="w-5 h-5 text-gray-400 mt-1" />
               <div>
                 <p className="text-sm text-gray-500 mb-1">Full Name</p>
                 <p className="font-medium text-gray-900">{user.name}</p>
@@ -90,7 +107,7 @@ const UserDetails = () => {
             </div>
 
             <div className="flex items-start gap-4">
-              {user.status === "Active" ? (
+              {user.status === "ACTIVE" ? (
                 <CheckCircle className="w-5 h-5 text-green-500 mt-1" />
               ) : (
                 <XCircle className="w-5 h-5 text-red-500 mt-1" />
@@ -98,7 +115,7 @@ const UserDetails = () => {
               <div>
                 <p className="text-sm text-gray-500 mb-1">Status</p>
                 <p
-                  className={`font-medium ${user.status === "Active" ? "text-green-600" : "text-red-600"
+                  className={`font-medium ${user.status === "ACTIVE" ? "text-green-600" : "text-red-600"
                     }`}
                 >
                   {user.status}

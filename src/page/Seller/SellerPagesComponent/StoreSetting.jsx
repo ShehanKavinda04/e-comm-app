@@ -1,11 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import ArrowForwardIosIcon from '@mui/icons-material/ArrowForwardIos';
 import { useDispatch, useSelector } from 'react-redux';
-import { updateSettings } from '../../../Store/ReduxSlice/sellerSlice';
+import { fetchStoreSettings, updateStoreSettingsThunk } from '../../../Store/ReduxSlice/sellerSlice';
+import { AuthContext } from '../../../Contexts/AuthContext';
+import { useContext } from 'react';
 
 const StoreSetting = () => {
   const dispatch = useDispatch();
-  const { settings } = useSelector((state) => state.seller);
+  const { user } = useContext(AuthContext);
+  const { settings, isLoading, isSuccess, message: reduxMessage } = useSelector((state) => state.seller);
   const logoInputRef = useRef(null);
   const bannerInputRef = useRef(null);
 
@@ -13,16 +16,49 @@ const StoreSetting = () => {
     storeName: "",
     email: "",
     phone: "",
+    logo: "",
+    banner: "",
     ordersNotification: true,
     messagesNotification: true,
     stockNotification: true
   });
 
-  const [message, setMessage] = useState("");
+  const [localMessage, setLocalMessage] = useState("");
+
+  useEffect(() => {
+    if (user?.token) {
+      dispatch(fetchStoreSettings({ token: user.token }));
+
+      // Real-time synchronization via SSE
+      const sseUrl = "/api/ads/stream";
+      const eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+        console.log("Real-time store settings update received via SSE");
+        dispatch(fetchStoreSettings({ token: user.token }));
+      });
+
+      eventSource.onerror = (err) => {
+        console.error("SSE Connection Error for Store Settings:", err);
+        eventSource.close();
+      };
+
+      return () => {
+        if (eventSource) eventSource.close();
+      };
+    }
+  }, [dispatch, user?.token]);
 
   useEffect(() => {
     if (settings) {
-      setFormData(settings);
+      setFormData(prev => {
+        // Only update fields if they aren't being actively edited by the user
+        // or if they are the logo/banner (which are updated from server)
+        return {
+          ...prev,
+          ...settings
+        };
+      });
     }
   }, [settings]);
 
@@ -49,9 +85,18 @@ const StoreSetting = () => {
   };
 
   const handleSave = () => {
-    dispatch(updateSettings(formData));
-    setMessage("Settings saved successfully!");
-    setTimeout(() => setMessage(""), 3000);
+    if (user?.token) {
+      dispatch(updateStoreSettingsThunk({ token: user.token, settingsData: formData }))
+        .unwrap()
+        .then(() => {
+          setLocalMessage("Settings saved successfully!");
+          setTimeout(() => setLocalMessage(""), 3000);
+        })
+        .catch((err) => {
+          setLocalMessage(`Error: ${err}`);
+          setTimeout(() => setLocalMessage(""), 5000);
+        });
+    }
   };
 
   const ToggleSwitch = ({ name, checked, onChange }) => (
@@ -73,15 +118,16 @@ const StoreSetting = () => {
         <p className='text-black text-2xl font-bold'>Store Settings</p>
         <button
           onClick={handleSave}
-          className="bg-black text-white px-6 py-2 rounded-full font-medium hover:bg-gray-800 transition shadow-sm cursor-pointer"
+          disabled={isLoading}
+          className={`bg-black text-white px-6 py-2 rounded-full font-medium hover:bg-gray-800 transition shadow-sm cursor-pointer ${isLoading ? 'opacity-50' : ''}`}
         >
-          Save Changes
+          {isLoading ? "Saving..." : "Save Changes"}
         </button>
       </div>
 
-      {message && (
-        <div className="mx-10 p-3 bg-green-100 text-green-700 rounded-lg text-center font-medium">
-          {message}
+      {localMessage && (
+        <div className={`mx-10 p-3 rounded-lg text-center font-medium ${localMessage.startsWith('Error') ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
+          {localMessage}
         </div>
       )}
 

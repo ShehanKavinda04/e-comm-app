@@ -10,6 +10,7 @@ const InputField = ({
   inputMode,
   pattern,
   maxLength,
+  onChange,
 }) => (
   <div className="space-y-1">
     <label className="block text-sm font-medium text-gray-800 sm:text-base">
@@ -22,6 +23,7 @@ const InputField = ({
       inputMode={inputMode}
       pattern={pattern}
       maxLength={maxLength}
+      onChange={onChange}
       className={`w-full rounded-full border-2 px-4 py-3 text-gray-700 transition-colors focus:outline-none sm:py-3.5 ${
         error
           ? 'border-red-500 focus:border-red-600'

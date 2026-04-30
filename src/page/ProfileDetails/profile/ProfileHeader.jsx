@@ -1,7 +1,8 @@
 import { IconButton } from '@mui/material';
 import PhotoCameraIcon from '@mui/icons-material/PhotoCamera';
+import DeleteIcon from '@mui/icons-material/Delete';
 
-const ProfileHeader = ({ profilePic, fullName, email, role, onImageUpload }) => {
+const ProfileHeader = ({ profilePic, fullName, email, role, onImageUpload, onImageDelete }) => {
   return (
     <div className="flex flex-col md:flex-row items-start gap-6 mb-8">
       <div className="relative">
@@ -25,6 +26,21 @@ const ProfileHeader = ({ profilePic, fullName, email, role, onImageUpload }) => 
             <PhotoCameraIcon sx={{ color: '#1976d2' }} />
           </IconButton>
         </label>
+        {profilePic && (
+          <IconButton
+            onClick={onImageDelete}
+            sx={{
+              position: 'absolute',
+              top: 0,
+              right: 0,
+              backgroundColor: 'white',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+              '&:hover': { backgroundColor: '#ffebee' },
+            }}
+          >
+            <DeleteIcon sx={{ color: '#d32f2f', fontSize: 20 }} />
+          </IconButton>
+        )}
         <input
           id="photo-upload"
           type="file"

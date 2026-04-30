@@ -5,6 +5,7 @@ import App from './App.jsx'
 import { Provider } from 'react-redux'
 import store from './Store/ReduxSlice/store.js'
 import { AuthProvider } from './Contexts/AuthContext.jsx'
+import { NotificationProvider } from './Contexts/NotificationContext.jsx'
 import { HelmetProvider } from 'react-helmet-async';
 
 
@@ -12,11 +13,13 @@ import { HelmetProvider } from 'react-helmet-async';
 createRoot(document.getElementById('root')).render(
   <StrictMode>
     <AuthProvider>
-      <Provider store={store}>
-        <HelmetProvider>
-          <App />
-        </HelmetProvider>
-      </Provider>
+      <NotificationProvider>
+        <Provider store={store}>
+          <HelmetProvider>
+            <App />
+          </HelmetProvider>
+        </Provider>
+      </NotificationProvider>
     </AuthProvider>
   </StrictMode>,
 )

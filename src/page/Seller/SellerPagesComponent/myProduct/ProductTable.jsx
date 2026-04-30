@@ -3,7 +3,7 @@ import DeleteIcon from '@mui/icons-material/Delete';
 import BorderColorIcon from '@mui/icons-material/BorderColor';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 
-const ProductTable = ({ products, getStatusColor, onEdit, onView, onDelete }) => {
+const ProductTable = ({ products, getStatusColor, onEdit, onView, onDelete, onToggleStatus }) => {
     return (
         <div className="overflow-x-auto bg-white rounded-xl shadow-sm border border-gray-200">
             <table className="w-full text-left border-collapse">
@@ -23,7 +23,12 @@ const ProductTable = ({ products, getStatusColor, onEdit, onView, onDelete }) =>
                             <td className="px-6 py-4">
                                 <div className="flex items-center gap-4">
                                     <div className="w-12 h-12 rounded-lg overflow-hidden border border-gray-200 bg-white flex-shrink-0">
-                                        <img src={product.image} alt={product.name} className="w-full h-full object-contain" />
+                                        <img 
+                                            src={product.imageFilename ? `/api/uploads/${product.imageFilename}` : 'https://via.placeholder.com/150?text=No+Image'} 
+                                            alt={product.name} 
+                                            className="w-full h-full object-contain" 
+                                            onError={(e) => { e.target.src = 'https://via.placeholder.com/150'; }}
+                                        />
                                     </div>
                                     <span className="font-medium text-gray-900 line-clamp-2 max-w-[200px]" title={product.name}>
                                         {product.name}
@@ -31,18 +36,22 @@ const ProductTable = ({ products, getStatusColor, onEdit, onView, onDelete }) =>
                                 </div>
                             </td>
                             <td className="px-6 py-4 font-medium text-gray-900">
-                                Rs. {product.price.toLocaleString()}
+                                Rs. {(product.price || 0).toLocaleString()}
                             </td>
-                            <td className={`px-6 py-4 text-center font-medium ${product.stock < 10 ? 'text-red-500' : 'text-gray-700'}`}>
-                                {product.stock}
+                            <td className={`px-6 py-4 text-center font-medium ${(product.stock || 0) < 10 ? 'text-red-500' : 'text-gray-700'}`}>
+                                {product.stock || 0}
                             </td>
                             <td className="px-6 py-4 text-center text-gray-700">
-                                {product.sold}
+                                {product.soldCount || 0}
                             </td>
                             <td className="px-6 py-4 text-center">
-                                <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium text-white ${getStatusColor(product.status)}`}>
+                                <button
+                                    onClick={() => onToggleStatus && onToggleStatus(product)}
+                                    className={`inline-block px-3 py-1 rounded-full text-xs font-medium text-white transition-all hover:opacity-80 active:scale-95 cursor-pointer ${getStatusColor(product.status)}`}
+                                    title={`Click to toggle ${product.status === 'ACTIVE' ? 'Inactive' : 'Active'}`}
+                                >
                                     {product.status}
-                                </span>
+                                </button>
                             </td>
                             <td className="px-6 py-4">
                                 <div className="flex items-center justify-end gap-2">

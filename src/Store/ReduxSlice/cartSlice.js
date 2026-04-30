@@ -70,6 +70,20 @@ const cartSlice = createSlice({
             state.totalQuantity = 0;
             state.totalAmount = 0;
         },
+        setCart(state, action) {
+            const { items, total, totalItems } = action.payload;
+            state.cartItems = items.map(item => ({
+                id: item.productId, // Use productId as id since backend CartItemDTO doesn't have a separate ID
+                productId: item.productId,
+                title: item.name,
+                image: item.imageFilename,
+                price: item.unitPrice,
+                quantity: item.quantity,
+                totalPrice: item.subtotal
+            }));
+            state.totalAmount = total;
+            state.totalQuantity = totalItems;
+        },
     },
 });
 

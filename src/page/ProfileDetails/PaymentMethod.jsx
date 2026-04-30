@@ -8,26 +8,47 @@ import koko from '../../img/koko.png'
 import MasterCard_1 from '../../img/MasterCard_1.png'
 import MasterCard_2 from '../../img/MasterCard_2.png'
 import visaCard from '../../img/visaCard.png'
+import { getUserPaymentDetails, saveUserPaymentDetails } from '../../Services/paymentService';
+import { toast } from 'react-hot-toast';
 
 const PaymentMethod = () => {
   const [selectedMethod, setSelectedMethod] = useState('card')
-  const [cardDetails, setCardDetails] = useState({
-    holder: '',
-    number: '',
-    expiry: '',
-    cvv: ''
-  })
-  const [kokoDetails, setKokoDetails] = useState({
-    mobile: ''
-  })
+  const [cardDetails, setCardDetails] = useState({ holder: '', number: '', expiry: '', cvv: '' })
+  const [kokoDetails, setKokoDetails] = useState({ mobile: '' })
+  const [isSaved, setIsSaved] = useState(false);
+  const [isDirty, setIsDirty] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   // Status Modal State
   const [statusModal, setStatusModal] = useState({
     isOpen: false,
-    type: 'success', // 'success' or 'error'
+    type: 'success',
     title: '',
     message: ''
   });
+
+  // Fetch saved details on mount
+  React.useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const saved = await getUserPaymentDetails();
+        if (saved && (saved.holder || saved.kokoMobile)) {
+          setCardDetails({
+            holder: saved.holder || '',
+            number: saved.number || '',
+            expiry: saved.expiry || '',
+            cvv: saved.cvv || ''
+          });
+          setKokoDetails({ mobile: saved.kokoMobile || '' });
+          setSelectedMethod(saved.selectedMethod || 'card');
+          setIsSaved(true);
+        }
+      } catch (err) {
+        console.error('Failed to load payment details:', err);
+      }
+    };
+    fetchData();
+  }, []);
 
   const showStatus = (type, title, message) => {
     setStatusModal({
@@ -45,31 +66,46 @@ const PaymentMethod = () => {
   const handleCardChange = (e) => {
     const { name, value } = e.target
     setCardDetails(prev => ({ ...prev, [name]: value }))
+    setIsDirty(true);
   }
 
   const handleKokoChange = (e) => {
     const { name, value } = e.target
     setKokoDetails(prev => ({ ...prev, [name]: value }))
+    setIsDirty(true);
   }
 
-  const handleConfirm = () => {
-    console.log("Confirm button clicked. Method:", selectedMethod);
-
+  const handleConfirm = async () => {
     if (selectedMethod === 'card') {
       const { holder, number, expiry, cvv } = cardDetails
-      if (!holder) return showStatus('error', 'Missing Information', "Please enter the Card Holder Name.");
-      if (!number) return showStatus('error', 'Missing Information', "Please enter the Card Number.");
-      if (!expiry) return showStatus('error', 'Missing Information', "Please enter the Valid Date (MM/YY).");
-      if (!cvv) return showStatus('error', 'Missing Information', "Please enter the CVV.");
-
-      showStatus('success', 'Payment Successful', "Your payment has been processed successfully!");
-    } else if (selectedMethod === 'koko') {
-      const { mobile } = kokoDetails
-      if (!mobile || mobile.length < 9) {
-        showStatus('error', 'Invalid Mobile Number', "Please enter a valid KOKO registered mobile number.");
-        return
+      if (!holder || !number || !expiry || !cvv) {
+        return showStatus('error', 'Missing Information', "Please complete all card details.");
       }
-      showStatus('success', 'Payment Initiated', "Redirecting to KOKO secure payment gateway...");
+    } else {
+      if (!kokoDetails.mobile || kokoDetails.mobile.length < 9) {
+        return showStatus('error', 'Invalid Mobile', "Please enter a valid KOKO mobile number.");
+      }
+    }
+
+    setLoading(true);
+    try {
+      const payload = {
+        holder: cardDetails.holder,
+        number: cardDetails.number,
+        expiry: cardDetails.expiry,
+        cvv: cardDetails.cvv,
+        selectedMethod: selectedMethod,
+        kokoMobile: kokoDetails.mobile
+      };
+
+      await saveUserPaymentDetails(payload);
+      setIsSaved(true);
+      setIsDirty(false);
+      showStatus('success', 'Details Saved', "Your payment information has been securely updated.");
+    } catch (err) {
+      showStatus('error', 'Sync Failed', "Unable to save details to server. Please try again.");
+    } finally {
+      setLoading(false);
     }
   }
 
@@ -231,15 +267,18 @@ const PaymentMethod = () => {
                     />
                   </div>
 
-                  {/* Confirm Button */}
-                  <div className='flex justify-center mt-6'>
-                    <button
-                      onClick={handleConfirm}
-                      className='bg-orange-600 hover:bg-orange-700 text-white text-lg font-semibold px-12 sm:px-20 py-2 shadow-md transition-all cursor-pointer'
-                    >
-                      Confirm
-                    </button>
-                  </div>
+                  {/* Confirm Button - Hidden if saved and not modified */}
+                  {(isDirty || !isSaved) && (
+                    <div className='flex justify-center mt-6'>
+                      <button
+                        onClick={handleConfirm}
+                        disabled={loading}
+                        className='bg-orange-600 hover:bg-orange-700 text-white text-lg font-semibold px-12 sm:px-20 py-2 shadow-md transition-all cursor-pointer disabled:opacity-50'
+                      >
+                        {loading ? 'Saving...' : 'Confirm'}
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

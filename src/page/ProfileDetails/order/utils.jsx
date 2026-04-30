@@ -10,6 +10,7 @@ export const formatDate = (dateStr) => {
 };
 
 export const getStatusBadge = (status) => {
+  const normStatus = String(status || 'UNKNOWN').toLowerCase();
   const styles = {
     processing: 'bg-yellow-100 text-yellow-800 border-yellow-400',
     shipped: 'bg-blue-100 text-blue-800 border-blue-400',
@@ -19,10 +20,10 @@ export const getStatusBadge = (status) => {
   return (
     <span
       className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${
-        styles[status] || 'bg-gray-100 text-gray-800 border-gray-400'
+        styles[normStatus] || 'bg-gray-100 text-gray-800 border-gray-400'
       }`}
     >
-      {status.charAt(0).toUpperCase() + status.slice(1)}
+      {normStatus.charAt(0).toUpperCase() + normStatus.slice(1)}
     </span>
   );
 };

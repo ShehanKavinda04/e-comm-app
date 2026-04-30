@@ -1,17 +1,47 @@
 import React, { useState, useEffect, useMemo } from "react";
 import { Eye, FileText, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
-import { getAllOrders } from "../../../../Services/MockDataService";
+import api from "../../../../Services/api";
 
 const Order = () => {
   const [orders, setOrders] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState("All");
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 5;
 
+  const fetchOrders = async () => {
+    try {
+      // Use the 'api' instance which includes the Authorization token
+      const response = await api.get("/admin/orders");
+      setOrders(response.data);
+    } catch (error) {
+      console.error("Failed to fetch admin orders:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const data = getAllOrders();
-    setOrders(data);
+    fetchOrders();
+
+    // SSE Real-time Synchronization
+    const sseUrl = "/api/ads/stream";
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+      console.log("Admin Dashboard: Real-time order update received via SSE");
+      fetchOrders();
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Connection Error for Admin Orders:", err);
+      eventSource.close();
+    };
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
   }, []);
 
   const filters = [
@@ -25,7 +55,7 @@ const Order = () => {
 
   const filteredOrders = useMemo(() => {
     if (activeFilter === "All") return orders;
-    return orders.filter((order) => order.status === activeFilter);
+    return orders.filter((order) => order.status.toLowerCase() === activeFilter.toLowerCase());
   }, [orders, activeFilter]);
 
   const currentItems = filteredOrders.slice(
@@ -33,15 +63,21 @@ const Order = () => {
     currentPage * ITEMS_PER_PAGE
   );
 
-  const handleResolveOrder = (orderId) => {
-    const updatedOrders = orders.map((order) => {
-      if (order.id === orderId) {
-        return { ...order, status: "Resolved" };
+  const handleResolveOrder = async (orderId) => {
+    try {
+      // Robustly strip prefixes to get a pure numeric ID for the API
+      const numericIdString = orderId.toString().replace("ORD-", "");
+      const numericId = parseInt(numericIdString);
+      
+      if (isNaN(numericId)) {
+        throw new Error(`Invalid order ID format: ${orderId}`);
       }
-      return order;
-    });
-    setOrders(updatedOrders);
-    alert(`Order #${orderId} has been marked as Resolved.`);
+
+      await api.put(`/admin/orders/${numericId}/resolve`);
+      fetchOrders();
+    } catch (error) {
+      alert(`Error resolving order: ${error.message}`);
+    }
   };
 
   return (
@@ -170,31 +206,35 @@ const OrderCard = ({ order, onResolve }) => {
 
         {/* Right Actions */}
         <div className="flex gap-3">
-          {order.status === "Disputed" ? (
-            <>
+          {/* Extract the numeric portion for routing to match backend expected Long ID */}
+          {(() => {
+            const numericId = order.id.toString().replace("ORD-", "");
+            return order.status === "Disputed" ? (
+              <>
+                <Link
+                  to={`/admin/order/${numericId}`}
+                  className="flex items-center gap-2 px-4 py-2 border border-black rounded-lg text-black font-medium hover:bg-gray-50"
+                >
+                  <Eye className="w-4 h-4" />
+                  View
+                </Link>
+                <button
+                  onClick={handleResolve}
+                  className="px-4 py-2 bg-[#E13626] text-white rounded-lg font-medium hover:bg-red-700"
+                >
+                  Resolve
+                </button>
+              </>
+            ) : (
               <Link
-                to={`/admin/order/${order.id}`}
+                to={`/admin/order/${numericId}`}
                 className="flex items-center gap-2 px-4 py-2 border border-black rounded-lg text-black font-medium hover:bg-gray-50"
               >
-                <Eye className="w-4 h-4" />
-                View
+                <FileText className="w-4 h-4" />
+                View Details
               </Link>
-              <button
-                onClick={handleResolve}
-                className="px-4 py-2 bg-[#E13626] text-white rounded-lg font-medium hover:bg-red-700"
-              >
-                Resolve
-              </button>
-            </>
-          ) : (
-            <Link
-              to={`/admin/order/${order.id}`}
-              className="flex items-center gap-2 px-4 py-2 border border-black rounded-lg text-black font-medium hover:bg-gray-50"
-            >
-              <FileText className="w-4 h-4" />
-              View Details
-            </Link>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>

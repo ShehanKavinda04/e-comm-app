@@ -7,6 +7,7 @@ import { AuthContext } from "../../Contexts/AuthContext";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import MonetizationOnIcon from "@mui/icons-material/MonetizationOn";
 import PersonIcon from "@mui/icons-material/Person";
+import NotificationsIcon from "@mui/icons-material/Notifications";
 
 const labelIcon = [
   {
@@ -39,6 +40,11 @@ const labelIcon = [
     title: "Payment Methods",
     path: "payment-methods",
   },
+  {
+    Icon: NotificationsIcon,
+    title: "Notifications",
+    path: "notifications",
+  },
 ];
 
 import LogoutModal from '../../component/LogoutModal';
@@ -55,7 +61,7 @@ const User = () => {
   };
 
   return (
-    <div className="pt-[110px] w-full ms:h-full md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300">
+    <div className="w-full min-h-screen bg-gray-300">
       <div className="flex flex-col md:flex-row md:items-center gap-5 justify-between mb-5">
         {/* ... existing header content ... */}
         <div>
@@ -79,7 +85,7 @@ const User = () => {
         </div>
       </div>
       <div className="flex items-center md:px-25 gap-10 px-5 mb-5 justify-between">
-        <div className="grid grid-cols-3 md:grid-cols-2 lg:grid-cols-6 items-center w-full">
+        <div className="flex flex-wrap items-center justify-center gap-4 w-full">
           {labelIcon.map(({ Icon, title, path }, index) => {
             return (
               <ProfileTab
@@ -113,7 +119,12 @@ export default User;
 
 const ProfileTab = ({ title, path, Icon, navigate, currentPath }) => {
   const clickHandle = () => {
-    navigate(path);
+    // Navigate to absolute path under profile
+    if (path === "") {
+      navigate("/profile");
+    } else {
+      navigate(`/profile/${path}`);
+    }
   };
 
   // Determine if active.

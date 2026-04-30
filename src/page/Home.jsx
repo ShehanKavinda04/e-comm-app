@@ -1,5 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch, useSelector } from 'react-redux';
+import { fetchSellerProducts } from '../Store/ReduxSlice/sellerSlice';
+import { AuthContext } from '../Contexts/AuthContext';
+import api from '../Services/api';
 import Ads from '../component/ads/Ads';
 import ChevronRightIcon from '@mui/icons-material/ChevronRight';
 import VerifiedUserOutlinedIcon from '@mui/icons-material/VerifiedUserOutlined';
@@ -9,32 +13,46 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import StarIcon from '@mui/icons-material/Star';
 import Footer from '../component/Footer';
 import Category from '../component/Category/Category';
-import { CategoryItem } from '../component/Product/Product'; // Import reused component
-import { getProducts } from '../Services/MockDataService'; // Import data service
+import { CategoryItem } from '../component/Product/Product'; 
 import SEO from '../component/SEO/SEO';
 
 const Home = () => {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { products: reduxProducts } = useSelector((state) => state.seller);
+  const { user } = useContext(AuthContext);
   const [featuredProducts, setFeaturedProducts] = useState([]);
 
   useEffect(() => {
-    const data = getProducts();
-    // Use data directly, but limit to 4 for featured
-    // Ensure properties match what CategoryItem expects
-    const transformedProducts = data.slice(0, 4).map(item => ({
-      ...item,
-      imgUrl: item.image, // Ensure compatibility if component uses imgUrl
-      product: item.category,
-      rating: (Math.random() * (5.0 - 4.0) + 4.0).toFixed(1),
-      reviews: `${Math.floor(Math.random() * 200) + 50} reviews`,
-    }));
-    setFeaturedProducts(transformedProducts);
+    const fetchHomeProducts = async () => {
+      try {
+        const response = await api.get('/products');
+        const data = response.data;
+        
+        // Transform Redux products for display, limit to 4 for "Featured" section
+        const transformedProducts = data.slice(0, 4).map(item => ({
+          ...item,
+          imgUrl: item.imageFilename ? `/api/uploads/${item.imageFilename}` : 'https://placehold.co/500x600?text=No+Image',
+          name: item.brandName || 'Generic',
+          product: item.categoryName || 'Product',
+          title: item.name || 'Product',
+          rating: item.avgRating || (Math.random() * (5.0 - 4.5) + 4.5).toFixed(1),
+          reviews: `12 reviews`,
+          price: item.price
+        }));
+        setFeaturedProducts(transformedProducts);
+      } catch (err) {
+        console.error("Failed to fetch products for home page:", err);
+      }
+    };
+
+    fetchHomeProducts();
   }, []);
 
   const formatPrice = (price) => price.toLocaleString();
 
   return (
-    <div className='pt-[100px] w-full min-h-screen bg-white'>
+    <div className='pt-4 w-full min-h-screen bg-white'>
       <SEO
         title="Home"
         description="Premium Mobile & Laptop Parts directly from TechNova. Authentic, fast delivery, and expert support."
@@ -52,13 +70,13 @@ const Home = () => {
               Find authentic mobile spare parts and computer accessories with guaranteed compatibility. Professional quality, trusted by thousands.
             </p>
             <button
-              onClick={() => navigate('/category/fitness/yoga-mat')}
+              onClick={() => navigate('/category')}
               className='px-8 py-3 rounded-full border-2 border-red-400 text-red-400 font-semibold text-lg hover:bg-red-50 transition'
             >
               Shop Now
             </button>
           </div>
-          <div className='flex-1 w-full max-w-md md:max-w-full'>
+          <div className='flex-1 w-full'>
             <Ads />
           </div>
         </div>

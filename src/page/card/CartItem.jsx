@@ -22,7 +22,7 @@ const CartItem = ({ id, image, title, subtitle, price, quantity, updateQuantity,
   return (
     <div
       data-item-id={id}
-      className="flex items-center justify-between bg-white rounded-2xl m-4 p-4 border border-orange-500 shadow-sm transition-all duration-300 hover:shadow-lg"
+      className="flex items-center justify-between bg-white rounded-2xl mx-4 my-2 p-4 border border-orange-500 shadow-sm transition-all duration-300 hover:shadow-lg"
     >
       <div className="flex gap-4 flex-1">
         <div className="w-24 h-24 flex-shrink-0 rounded-xl overflow-hidden border border-gray-200">

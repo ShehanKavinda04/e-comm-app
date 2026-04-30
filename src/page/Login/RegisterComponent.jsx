@@ -1,5 +1,6 @@
 import { useState, useContext } from "react";
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-hot-toast";
 import LoginInputBox from "../../component/loginInputBox/LoginInputBox";
 import emailValidate from "../../Utils/validate/emailValidate";
 import passwordValidate, { conFirmPasswordValidate } from "../../Utils/validate/passwordValidate";
@@ -31,14 +32,24 @@ const RegisterComponent = () => {
     if (!["buyer", "seller", "admin"].includes(accountType)) return setServerError("Invalid account type");
 
     setIsLoading(true);
-    const userData = { username: userName, email, password, phoneNo, accountType };
+    const userData = {
+      fullName: userName, // Mapped from username input
+      email,
+      password,
+      confirmPassword: cPassword,
+      accountType: accountType.toUpperCase() // Ensure SELLER/BUYER
+    };
     try {
-      const role = await register(userData);
-      // Redirect based on role
-      if (role === 'BUYER') navigate('/buyer-dashboard');
-      else if (role === 'SELLER') navigate('/seller/dashboard');
-      else if (role === 'ADMIN') navigate('/admin-dashboard');
-      else navigate('/');
+      const response = await register(userData);
+      toast.success(response?.message || "OTP sent to your email!");
+      
+      // Redirect to OTP verification page for new customers
+      navigate('/otp', { 
+        state: { 
+          email: userData.email, 
+          purpose: 'REGISTRATION' 
+        } 
+      });
     } catch (err) {
       setServerError(err.response?.data?.message || err.message || "Registration failed.");
     } finally {
@@ -71,10 +82,7 @@ const RegisterComponent = () => {
               <input type="radio" name="accountType" value="seller" checked={accountType === "seller"} onChange={(e) => setAccountType(e.target.value)} className="w-4 bg-amber-50 text-orange-400 focus:ring-orange-500" />
               <label className="text-black">Seller</label>
             </div>
-            <div className="flex gap-2">
-              <input type="radio" name="accountType" value="admin" checked={accountType === "admin"} onChange={(e) => setAccountType(e.target.value)} className="w-4 bg-amber-50 text-orange-400 focus:ring-orange-500" />
-              <label className="text-black">Admin</label>
-            </div>
+
           </div>
         </div>
         <div className="w-[55%] flex flex-col justify-center">

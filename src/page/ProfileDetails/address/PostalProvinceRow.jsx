@@ -8,6 +8,8 @@ const PostalProvinceRow = ({
   postalError,
   provinceError,
   provinces,
+  onPostalChange,
+  onProvinceChange,
 }) => (
   <div className="space-y-3">
     <label className="block text-sm font-medium text-gray-800 sm:text-base">
@@ -21,11 +23,13 @@ const PostalProvinceRow = ({
         inputMode="numeric"
         pattern="\d*"
         maxLength="5"
+        onChange={onPostalChange}
       />
       <SelectField
         refProp={provinceRef}
         error={provinceError}
         options={provinces}
+        onChange={onProvinceChange}
       />
     </div>
   </div>

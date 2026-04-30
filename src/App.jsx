@@ -41,6 +41,7 @@ const UserProtected = lazy(() => import("./Routers/UserProtected"));
 const Overview = lazy(() => import("./page/ProfileDetails/Overview"));
 const MyOrder = lazy(() => import("./page/ProfileDetails/order/MyOrder"));
 const UserProfile = lazy(() => import("./page/ProfileDetails/profile/UserProfile"));
+const UserNotifications = lazy(() => import("./page/ProfileDetails/profile/UserNotifications"));
 const Wishlist = lazy(() => import("./page/ProfileDetails/Wishlist"));
 
 const Seller = lazy(() => import("./page/Seller/Seller"));
@@ -81,116 +82,118 @@ const PublicRoute = ({ children }) => {
   if (loading) return <div>Loading...</div>;
   if (user) {
     if (user.role === "ADMIN") return <Navigate to="/admin" replace />;
-    if (user.role === "SELLER") return <Navigate to="/seller" replace />;
+    if (user.role === "SELLER") return <Navigate to="/seller/dashboard" replace />;
     return <Navigate to="/" replace />;
   }
   return children;
 };
 
+const router = createBrowserRouter([
+  {
+    element: (
+      <Suspense fallback={<PageLoader />}>
+        <GlobalTransitionLayout />
+      </Suspense>
+    ),
+    children: [
+      // -------------------------------------------------------------------------
+      // Auth Routes (Standalone)
+      // -------------------------------------------------------------------------
+      {
+        path: "/login",
+        element: (
+          <PublicRoute>
+            <Login />
+          </PublicRoute>
+        ),
+      },
+      { path: "/otp", element: <OTPPage /> },
+      { path: "/forgatepassword1", element: <Forgatepass1 /> },
+      { path: "/forgot-password", element: <Forgatepassword2 /> },
+
+
+      // -------------------------------------------------------------------------
+      // Main Application Routes (Main Layout)
+      // -------------------------------------------------------------------------
+      {
+        path: "/",
+        element: <MainLayout />,
+        children: [
+          { index: true, element: <Home /> },
+          { path: "card", element: <Card /> },
+          { path: "myCart", element: <MyCart /> },
+          { path: "products", element: <Product /> },
+          { path: "checkout", element: <Checkout /> },
+          { path: "order-success", element: <OrderSuccess /> },
+          { path: "seller", element: <Seller /> },
+          { path: "seller-registration", element: <SellerRegistration /> },
+          { path: "sellerProfile", element: <SellerProfile /> },
+
+          // Category Routes
+          {
+            path: "category",
+            children: [
+              { index: true, element: <CatalogPage /> },
+              {
+                path: ":categoryId",
+                children: [
+                  { index: true, element: <CategoryItems /> },
+                  { path: ":itemId", element: <ItemPage /> },
+                ],
+              },
+            ],
+          },
+
+          // User Protected Routes
+          {
+            element: <UserProtected />,
+            children: [
+              {
+                path: "profile",
+                element: <User />,
+                children: [
+                  { index: true, element: <Overview /> },
+                  { path: "address", element: <Address /> },
+                  { path: "orders", element: <MyOrder /> },
+                  { path: "payment-methods", element: <PaymentMethod /> },
+                  { path: "settings", element: <UserProfile /> },
+                  { path: "wishlist", element: <Wishlist /> },
+                  { path: "notifications", element: <UserNotifications /> },
+                ],
+              },
+            ],
+          },
+
+          // Seller Protected Routes
+          {
+            element: <SellerProtected />,
+            children: [
+              { path: "seller/dashboard", element: <SellerProfile /> },
+            ],
+          },
+
+          // Admin Routes (Moved inside MainLayout to show Header)
+          {
+            element: <AdminProtected />,
+            children: [
+              { path: "/admin", element: <Admin /> },
+              { path: "/admin/order/:id", element: <OrderDetails /> },
+              { path: "/admin/user/view/:id", element: <UserDetails /> },
+              { path: "/admin/user/edit/:id", element: <EditUser /> },
+            ],
+          },
+        ],
+      },
+
+      // -------------------------------------------------------------------------
+      // Catch-All (404)
+      // -------------------------------------------------------------------------
+      { path: "*", element: <NoUrl /> },
+    ],
+  },
+]);
+
 function App() {
-  const router = createBrowserRouter([
-    {
-      element: (
-        <Suspense fallback={<PageLoader />}>
-          <GlobalTransitionLayout />
-        </Suspense>
-      ),
-      children: [
-        // -------------------------------------------------------------------------
-        // Auth Routes (Standalone)
-        // -------------------------------------------------------------------------
-        {
-          path: "/login",
-          element: (
-            <PublicRoute>
-              <Login />
-            </PublicRoute>
-          ),
-        },
-        { path: "/otp", element: <OTPPage /> },
-        { path: "/forgatepassword1", element: <Forgatepass1 /> },
-        { path: "/forgot-password", element: <Forgatepassword2 /> },
-
-
-        // -------------------------------------------------------------------------
-        // Main Application Routes (Main Layout)
-        // -------------------------------------------------------------------------
-        {
-          path: "/",
-          element: <MainLayout />,
-          children: [
-            { index: true, element: <Home /> },
-            { path: "card", element: <Card /> },
-            { path: "myCart", element: <MyCart /> },
-            { path: "products", element: <Product /> }, // New Route
-            { path: "checkout", element: <Checkout /> }, // New Route
-            { path: "order-success", element: <OrderSuccess /> }, // New Route
-            { path: "seller", element: <Seller /> },
-            { path: "seller-registration", element: <SellerRegistration /> },
-            { path: "sellerProfile", element: <SellerProfile /> },
-
-            // Category Routes
-            {
-              path: "category",
-              children: [
-                { index: true, element: <CatalogPage /> },
-                {
-                  path: ":categoryId",
-                  children: [
-                    { index: true, element: <CategoryItems /> },
-                    { path: ":itemId", element: <ItemPage /> },
-                  ],
-                },
-              ],
-            },
-
-            // User Protected Routes
-            {
-              element: <UserProtected />,
-              children: [
-                {
-                  path: "profile",
-                  element: <User />,
-                  children: [
-                    { index: true, element: <Overview /> },
-                    { path: "address", element: <Address /> },
-                    { path: "orders", element: <MyOrder /> },
-                    { path: "payment-methods", element: <PaymentMethod /> },
-                    { path: "settings", element: <UserProfile /> },
-                    { path: "wishlist", element: <Wishlist /> },
-                  ],
-                },
-              ],
-            },
-
-            // Seller Protected Routes
-            {
-              element: <SellerProtected />,
-              children: [
-                { path: "seller/dashboard", element: <SellerProfile /> },
-              ],
-            },
-
-            // Admin Routes (Moved inside MainLayout to show Header)
-            {
-              element: <AdminProtected />,
-              children: [
-                { path: "/admin", element: <Admin /> },
-                { path: "/admin/order/:id", element: <OrderDetails /> },
-                { path: "/admin/user/view/:id", element: <UserDetails /> },
-                { path: "/admin/user/edit/:id", element: <EditUser /> },
-              ],
-            },
-          ],
-        },
-
-        // -------------------------------------------------------------------------
-        // Catch-All (404)
-        // -------------------------------------------------------------------------
-        { path: "*", element: <NoUrl /> },
-      ],
-    },
-  ]);
 
   return (
     <div>

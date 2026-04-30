@@ -1,23 +1,58 @@
 // src/components/MyProducts.jsx
-import React, { useState } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import ProductTable from './ProductTable';
 import EditProductModal from './EditProductModal';
 import ViewProductModal from './ViewProductModal';
 import DeleteConfirmModal from './DeleteConfirmModal';
 
 import { useDispatch, useSelector } from 'react-redux';
-import { addProduct, updateProduct, deleteProduct, fetchSellerStats } from '../../../../Store/ReduxSlice/sellerSlice';
+import { createProduct, updateProductThunk, deleteProductThunk, fetchSellerProducts, toggleProductStatusThunk } from '../../../../Store/ReduxSlice/sellerSlice';
+import { AuthContext } from '../../../../Contexts/AuthContext';
 
 const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
   const dispatch = useDispatch();
-  const { products } = useSelector((state) => state.seller);
+  const { user } = useContext(AuthContext);
+  const { products, isLoading } = useSelector((state) => state.seller);
 
-  // Load products if empty (initial load)
-  React.useEffect(() => {
-    if (!products || products.length === 0) {
-      dispatch(fetchSellerStats());
+  // Load products
+  useEffect(() => {
+    if (user?.token) {
+      dispatch(fetchSellerProducts({ token: user.token }));
     }
-  }, [dispatch, products]);
+
+    // Real-time synchronization via SSE
+    if (!user?.token) return;
+
+    let eventSource;
+    let retryCount = 0;
+    const maxRetries = 5;
+
+    const connectSSE = () => {
+      const sseUrl = "/api/ads/stream";
+      console.log("MyProducts connecting to SSE at:", sseUrl);
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+        console.log("Real-time Product Update Received at:", new Date().toLocaleTimeString());
+        dispatch(fetchSellerProducts({ token: user.token }));
+      });
+
+      eventSource.onerror = (err) => {
+        eventSource.close();
+        if (retryCount < maxRetries) {
+          const timeout = Math.pow(2, retryCount) * 1000;
+          setTimeout(connectSSE, timeout);
+          retryCount++;
+        }
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
+  }, [dispatch, user?.token]);
 
   const [filter, setFilter] = useState('All');
   const [editingProduct, setEditingProduct] = useState(null);
@@ -27,9 +62,9 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
   const [deletingProduct, setDeletingProduct] = useState(null);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (triggerAddProduct) {
-      setEditingProduct({ name: '', price: 0, stock: 0, status: 'Processing', image: '' });
+      setEditingProduct({ name: '', price: 0, stock: 0, status: 'ACTIVE', image: '' });
       setIsEditModalOpen(true);
       if (onAddProductHandled) onAddProductHandled();
     }
@@ -41,9 +76,9 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'Processing': return 'bg-yellow-500';
-      case 'Shipped': return 'bg-blue-500';
-      case 'Delivered': return 'bg-green-500';
+      case 'ACTIVE': return 'bg-green-500';
+      case 'INACTIVE': return 'bg-red-500';
+      case 'DELETED': return 'bg-gray-500';
       default: return 'bg-gray-500';
     }
   };
@@ -62,17 +97,33 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
   };
 
   const handleSave = () => {
-    if (editingProduct.id) {
+    const token = user?.token;
+    if (!token) return;
+
+    // Prepare data for multipart/form-data (including the image file if selected)
+    const productData = {
+      name: editingProduct.name,
+      price: editingProduct.price,
+      stock: editingProduct.stock,
+      categoryId: editingProduct.categoryId || 1, // Defaulting for simple audit
+      brandId: editingProduct.brandId || 1,       // Defaulting for simple audit
+      description: editingProduct.description || "",
+      active: editingProduct.status === 'ACTIVE',
+      imageFile: editingProduct.imageFile // Expected in EditProductModal
+    };
+
+    if (editingProduct.id && typeof editingProduct.id === 'number' && editingProduct.id > 10000000000) {
+      // It's a temporary ID from our old logic or a brand new product
+      dispatch(createProduct({ token, productData }))
+        .then(() => dispatch(fetchSellerProducts({ token })));
+    } else if (editingProduct.id) {
       // Edit existing
-      dispatch(updateProduct(editingProduct));
+      dispatch(updateProductThunk({ token, productId: editingProduct.id, productData }))
+        .then(() => dispatch(fetchSellerProducts({ token })));
     } else {
-      // Add new
-      const newProduct = {
-        ...editingProduct,
-        id: Date.now(),
-        sold: 0
-      };
-      dispatch(addProduct(newProduct));
+      // Add new if no ID at all
+      dispatch(createProduct({ token, productData }))
+        .then(() => dispatch(fetchSellerProducts({ token })));
     }
     setIsEditModalOpen(false);
     setEditingProduct(null);
@@ -89,10 +140,29 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
   };
 
   const confirmDelete = () => {
-    dispatch(deleteProduct(deletingProduct.id));
+    if (user?.token && deletingProduct?.id) {
+      dispatch(deleteProductThunk({ token: user.token, productId: deletingProduct.id }))
+        .then(() => dispatch(fetchSellerProducts({ token: user.token })));
+    }
     setIsDeleteModalOpen(false);
     setDeletingProduct(null);
   };
+
+  const handleToggleStatus = (product) => {
+    if (user?.token && product?.id) {
+      dispatch(toggleProductStatusThunk({ token: user.token, productId: product.id }));
+    }
+  };
+
+  const getCounts = () => {
+    return {
+      All: (products || []).length,
+      ACTIVE: (products || []).filter(p => p.status === 'ACTIVE').length,
+      INACTIVE: (products || []).filter(p => p.status === 'INACTIVE').length
+    };
+  };
+
+  const counts = getCounts();
 
   return (
     <div>
@@ -100,16 +170,19 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
       <div className="flex justify-between mx-4 lg:px-20 md:px-10 mb-8">
         <p className="text-black text-3xl font-semibold">My Products</p>
         <div className="flex gap-3">
-          {['All', 'Processing', 'Delivered', 'Shipped'].map((category) => (
+          {['All', 'ACTIVE', 'INACTIVE'].map((category) => (
             <button
               key={category}
               onClick={() => setFilter(category)}
-              className={`px-6 py-2 border-2 cursor-pointer border-black rounded-full transition ${filter === category
+              className={`px-6 py-2 border-2 cursor-pointer border-black rounded-full transition flex items-center gap-2 ${filter === category
                 ? 'bg-black text-white'
                 : 'bg-white text-black hover:bg-gray-100'
                 }`}
             >
-              {category}
+              <span>{category}</span>
+              <span className={`text-[10px] px-1.5 py-0.5 rounded-full ${filter === category ? 'bg-white text-black' : 'bg-gray-100 text-gray-500'}`}>
+                {counts[category]}
+              </span>
             </button>
           ))}
         </div>
@@ -123,6 +196,7 @@ const MyProducts = ({ triggerAddProduct, onAddProductHandled }) => {
           onEdit={handleEdit}
           onView={handleView}
           onDelete={handleDeleteClick}
+          onToggleStatus={handleToggleStatus}
         />
       </div>
 

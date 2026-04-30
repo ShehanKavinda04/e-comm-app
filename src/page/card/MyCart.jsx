@@ -7,30 +7,53 @@ import CartItem from './CartItem';
 import CartSummary from './CartSummary';
 import { useSelector, useDispatch } from 'react-redux';
 import { cartActions } from '../../Store/ReduxSlice/cartSlice';
+import { removeFromBackendCart, updateBackendCartQuantity, getBackendCart } from '../../Services/cartSyncService';
 
 const MyCart = () => {
   const { cartItems, totalAmount, totalQuantity } = useSelector((state) => state.cart);
   const dispatch = useDispatch();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    const fetchCart = async () => {
+      setLoading(true);
+      try {
+        const backendCart = await getBackendCart();
+        if (backendCart) {
+          dispatch(cartActions.setCart(backendCart));
+        }
+      } catch (err) {
+        console.error("Cart fetch error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchCart();
+  }, [dispatch]);
 
   const updateQuantity = (id, change) => {
-    // If change is positive, dispatch addToCart (which handles increment)
-    // If change is negative, dispatch removeFromCart (which handles decrement)
-
-    // Find the item to pass necessary details for addToCart if needed
     const item = cartItems.find(i => i.id === id);
     if (!item) return;
 
     if (change > 0) {
       dispatch(cartActions.addToCart({ ...item, price: item.price }));
+      // Use PUT /update to set new exact quantity — prevents accumulation
+      updateBackendCartQuantity(item.productId || id, item.quantity + change);
     } else {
       dispatch(cartActions.removeFromCart(id));
+      if (item.quantity <= 1) {
+        removeFromBackendCart(item.productId || id);
+      } else {
+        updateBackendCartQuantity(item.productId || id, item.quantity - 1);
+      }
     }
   };
 
   const removeItem = (id) => {
     dispatch(cartActions.deleteFromCart(id));
+    removeFromBackendCart(id);
   };
 
   // Note: addToCart prop for Header handles adding NEW items from search results
@@ -56,7 +79,7 @@ const MyCart = () => {
   // Searching within the cart (optional feature validation)
   // If we want to filter the visible cart items based on search:
   const filteredCartItems = cartItems.filter((item) =>
-    item.title.toLowerCase().includes(searchQuery.toLowerCase())
+    item.title?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   // For the Header's autocomplete search, we typically search ALL products.
@@ -75,39 +98,41 @@ const MyCart = () => {
   const isEmpty = cartItems.length === 0;
 
   return (
-    <div className="min-h-screen mt-30 bg-gray-300 text-black">
+    <div className="min-h-screen flex flex-col bg-gray-300 text-black">
       {isEmpty ? (
         <EmptyCart />
       ) : (
         <>
-          <Header
-            totalItems={totalQuantity}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            filteredProducts={[]} // Disabling "Search to Add" for now as we act on Redux Cart
-            addToCart={addToCartFromHeader}
-          />
-
-          <div className="mb-6">
-            {filteredCartItems.map((item) => (
-              <CartItem
-                key={item.id}
-                image={item.image}
-                title={item.title}
-                subtitle={item.product || 'Product'} // Fallback if subtitle missing
-                price={item.price}
-                quantity={item.quantity}
-                id={item.id}
-                updateQuantity={updateQuantity}
-                removeItem={removeItem}
-              />
-            ))}
-
-            <CartSummary
-              subtotal={totalAmount}
-              handleProceedToCheckout={handleProceedToCheckout}
-              isEmpty={isEmpty}
+          <div className="flex-1 w-full">
+            <Header
+              totalItems={totalQuantity}
+              searchQuery={searchQuery}
+              setSearchQuery={setSearchQuery}
+              filteredProducts={[]} // Disabling "Search to Add" for now as we act on Redux Cart
+              addToCart={addToCartFromHeader}
             />
+
+            <div className="mb-6">
+              {filteredCartItems.map((item) => (
+                <CartItem
+                  key={item.id}
+                  image={item.image}
+                  title={item.title}
+                  subtitle={item.product || 'Product'} // Fallback if subtitle missing
+                  price={item.price}
+                  quantity={item.quantity}
+                  id={item.id}
+                  updateQuantity={updateQuantity}
+                  removeItem={removeItem}
+                />
+              ))}
+
+              <CartSummary
+                subtotal={totalAmount}
+                handleProceedToCheckout={handleProceedToCheckout}
+                isEmpty={isEmpty}
+              />
+            </div>
           </div>
 
           <Footer />

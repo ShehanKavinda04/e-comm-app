@@ -10,7 +10,7 @@ const Header = ({ totalItems, searchQuery, setSearchQuery, filteredProducts, add
 
   return (
     <div className="w-full p-4 bg-amber-50 sticky top-0 z-10">
-      <div className="flex items-center justify-between mb-3">
+      <div className="flex items-center justify-between mb-1">
         <IconButton onClick={() => navigate(-1)}>
           <ArrowBackIcon sx={{ color: 'orange', fontSize: 25 }} />
         </IconButton>

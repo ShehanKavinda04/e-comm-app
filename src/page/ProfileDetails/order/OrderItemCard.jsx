@@ -12,22 +12,32 @@ const OrderItemCard = ({ order, onViewDetails, onContactSeller }) => {
     }
   };
 
-  // Handle data structure differences if any (Seller data vs Buyer data)
-  const productId = order.id;
-  const productDate = order.date;
+  // Handle data structure differences if any (Seller data vs Buyer data vs Backend DTO)
+  const productId = order.orderNumber || order.id || 'N/A';
+  
+  // Format the orderedAt date
+  const productDate = order.orderedAt 
+    ? new Date(order.orderedAt).toLocaleString() 
+    : (order.date || 'Unknown');
+
   let productName = order.productName || "Product";
 
-  // Logic for Buyer orders (multi-item support)
-  if (order.items && order.items.length > 0) {
+  // Logic for Backend DTO (productNames array)
+  if (order.productNames && order.productNames.length > 0) {
+    productName = order.productNames[0];
+    if (order.productNames.length > 1) {
+      productName += ` + ${order.productNames.length - 1} more`;
+    }
+  } else if (order.items && order.items.length > 0) { // Legacy mockup logic fallback
     productName = order.items[0].name;
     if (order.items.length > 1) {
       productName += ` + ${order.items.length - 1} more`;
     }
   }
 
-  const productPrice = order.total || order.amount || 0;
-  const productStatus = order.status;
-  const productImage = order.items && order.items.length > 0 ? order.items[0].image : "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop";
+  const productPrice = order.totalAmount || order.total || order.amount || 0;
+  const productStatus = order.overallStatus || order.status || 'PROCESSING';
+  const productImage = order.productImageUrl || "https://placehold.co/120x120/f3f4f6/9ca3af?text=Product";
 
   return (
     <div className='border border-orange-200 rounded-xl p-6 bg-white shadow-sm'>
@@ -81,6 +91,7 @@ const OrderItemCard = ({ order, onViewDetails, onContactSeller }) => {
             View Details
           </button>
           <button
+            onClick={() => onViewDetails(order)}
             className='flex items-center gap-2 border border-orange-600 rounded-lg px-4 py-2 text-sm font-bold text-orange-700 hover:bg-orange-50 transition'
           >
             <LocalShippingIcon sx={{ fontSize: 18 }} />

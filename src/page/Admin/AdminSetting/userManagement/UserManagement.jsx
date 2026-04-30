@@ -1,45 +1,69 @@
 import React, { useState, useEffect } from "react";
 import { Search, MoreVertical } from "lucide-react";
 import { useNavigate } from "react-router-dom";
-import { getAllUsers } from "../../../../Services/MockDataService";
+import api from "../../../../Services/api";
+import toast from "react-hot-toast";
 
 const UserManagement = () => {
   const [users, setUsers] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [activeFilter, setActiveFilter] = useState("All");
   const [openMenuId, setOpenMenuId] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchUsers = async () => {
+    try {
+      const response = await api.get("/admin/dashboard/users");
+      setUsers(response.data);
+    } catch (error) {
+      console.error("Failed to fetch admin users:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchData = () => {
-      const data = getAllUsers();
-      setUsers(data);
+    fetchUsers();
+
+    // SSE Real-time Synchronization
+    const sseUrl = "http://localhost:8082/api/ads/stream"; // Full URL for reliability
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+      console.log("User Management: Real-time update received via SSE");
+      fetchUsers();
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Connection Error for User Management:", err);
+      eventSource.close();
     };
 
-    fetchData(); // Initial fetch
-
-    const intervalId = setInterval(fetchData, 3000); // Poll every 3 seconds
-
-    return () => clearInterval(intervalId);
+    return () => {
+      if (eventSource) eventSource.close();
+    };
   }, []);
 
   const filteredUsers = users.filter((user) => {
+    const name = user.name || "";
+    const email = user.email || "";
     const matchesSearch =
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase());
+      name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      email.toLowerCase().includes(searchTerm.toLowerCase());
 
     if (activeFilter === "All") return matchesSearch;
     if (activeFilter === "Seller")
-      return matchesSearch && user.role === "Seller";
-    if (activeFilter === "Buyer") return matchesSearch && user.role === "Buyer";
+      return matchesSearch && user.role?.toUpperCase() === "SELLER";
+    if (activeFilter === "Buyer") 
+      return matchesSearch && user.role?.toUpperCase() === "BUYER";
     if (activeFilter === "Active")
-      return matchesSearch && user.status === "Active";
+      return matchesSearch && user.status?.toUpperCase() === "ACTIVE";
     if (activeFilter === "Inactive")
-      return matchesSearch && user.status === "Inactive";
+      return matchesSearch && user.status?.toUpperCase() === "DISABLED";
 
     return matchesSearch;
   });
 
-  // Move hooks inside component body
   const navigate = useNavigate();
 
   const handleViewDetails = (user) => {
@@ -52,9 +76,26 @@ const UserManagement = () => {
     setOpenMenuId(null);
   };
 
-  const handleDeleteUser = (userId) => {
+  const handleDeleteUser = async (userId) => {
     if (window.confirm("Are you sure you want to delete this user?")) {
-      setUsers(users.filter((u) => u.id !== userId));
+      const loadingToast = toast.loading("Deleting user...");
+      try {
+        await api.delete(`/admin/dashboard/users/${userId}`);
+        
+        // Optimistic UI Update: Remove the user from the local state immediately
+        setUsers(prevUsers => prevUsers.filter(user => user.id !== userId));
+        
+        toast.success("User deleted successfully", { id: loadingToast });
+        
+        // Fallback: Also trigger a re-fetch and SSE synchronization
+        // fetchUsers(); 
+      } catch (err) {
+        console.error("Delete user error:", err);
+        const errorMessage = err.response?.data?.message || err.response?.data || err.message || "An unknown error occurred";
+        toast.error(`Failed to delete user: ${typeof errorMessage === 'object' ? JSON.stringify(errorMessage) : errorMessage}`, { 
+          id: loadingToast 
+        });
+      }
       setOpenMenuId(null);
     }
   };
@@ -101,13 +142,13 @@ const UserManagement = () => {
               {/* Avatar */}
               <div className="relative">
                 <img
-                  src={user.image}
+                  src={user.imageUrl || "https://ui-avatars.com/api/?name=" + encodeURIComponent(user.name)}
                   alt={user.name}
                   className="w-14 h-14 rounded-full object-cover border border-gray-200"
                 />
                 <div
                   className={`absolute bottom-1 right-0 w-3.5 h-3.5 rounded-full border-2 border-white 
-                  ${user.status === "Active" ? "bg-green-500" : "bg-red-500"}`}
+                  ${user.status === "ACTIVE" ? "bg-green-500" : "bg-red-500"}`}
                 ></div>
               </div>
 
@@ -135,7 +176,7 @@ const UserManagement = () => {
 
               {/* Dropdown Menu */}
               {openMenuId === user.id && (
-                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-lg border border-gray-100 z-10 py-1">
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-lg shadow-xl border border-gray-100 z-50 py-1 overflow-hidden transition-all duration-200">
                   <button
                     onClick={() => handleViewDetails(user)}
                     className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50"
@@ -149,8 +190,12 @@ const UserManagement = () => {
                     Edit User
                   </button>
                   <button
-                    onClick={() => handleDeleteUser(user.id)}
-                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50"
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDeleteUser(user.id);
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-50 cursor-pointer font-medium"
                   >
                     Delete User
                   </button>

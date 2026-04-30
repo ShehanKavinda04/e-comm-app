@@ -1,8 +1,18 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { cartActions } from '../../Store/ReduxSlice/cartSlice';
-import { orderActions } from '../../Store/ReduxSlice/orderSlice';
+import { clearBackendCart } from '../../Services/cartSyncService';
+import { getUserAddress, saveUserAddress } from '../../Services/addressService';
+import { getUserProfile } from '../../Services/userService';
+import { getUserPaymentDetails, saveUserPaymentDetails } from '../../Services/paymentService';
+import api from '../../Services/api';
+import { toast } from 'react-hot-toast';
+
+const isRealToken = () => {
+    const token = localStorage.getItem('token');
+    return !!token && token.length > 20; // Matches service check
+};
 
 const Checkout = () => {
     const navigate = useNavigate();
@@ -10,14 +20,17 @@ const Checkout = () => {
     const { cartItems, totalAmount } = useSelector((state) => state.cart);
     const [step, setStep] = useState(1); // 1: Address, 2: Payment
     const [loading, setLoading] = useState(false);
+    const [syncingAddress, setSyncingAddress] = useState(false);
 
     const [address, setAddress] = useState({
-        fullName: '',
+        firstName: '',
+        lastName: '',
         email: '',
         phone: '',
         street: '',
         city: '',
-        zip: ''
+        zip: '',
+        province: 'WESTERN' // Default
     });
 
     const [payment, setPayment] = useState({
@@ -27,8 +40,102 @@ const Checkout = () => {
         cardHolder: ''
     });
 
+    // Pre-fill address from saved profile address
+    useEffect(() => {
+        const fetchUserData = async () => {
+            if (isRealToken()) {
+                try {
+                    // Fetch both profile, specific address, and payment details in parallel
+                    const [profile, savedAddress, savedPayment] = await Promise.allSettled([
+                        getUserProfile(),
+                        getUserAddress(),
+                        getUserPaymentDetails()
+                    ]);
+
+                    let profileData = {};
+                    if (profile.status === 'fulfilled') {
+                        profileData = profile.value;
+                    }
+
+                    let addressRecord = {};
+                    if (savedAddress.status === 'fulfilled' && savedAddress.value) {
+                        addressRecord = savedAddress.value;
+                    }
+
+                    let paymentRecord = {};
+                    if (savedPayment.status === 'fulfilled' && savedPayment.value) {
+                        paymentRecord = savedPayment.value;
+                    }
+
+                    // Map address fields prioritizing the specific address record, then the base profile
+                    setAddress(prev => ({
+                        ...prev,
+                        firstName: addressRecord.firstName || profileData.fullName?.split(' ')[0] || '',
+                        lastName: addressRecord.lastName || profileData.fullName?.split(' ').slice(1).join(' ') || '',
+                        email: profileData.email || '',
+                        phone: addressRecord.phone || profileData.phone || '',
+                        street: addressRecord.address || '',
+                        city: addressRecord.city || '',
+                        zip: addressRecord.postalCode || '',
+                        province: addressRecord.province || 'WESTERN'
+                    }));
+
+                    // Map payment fields from profile
+                    if (paymentRecord && (paymentRecord.holder || paymentRecord.number)) {
+                        let formattedNum = paymentRecord.number || '';
+                        if (formattedNum) {
+                            formattedNum = formattedNum.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
+                        }
+                        setPayment({
+                            cardNumber: formattedNum,
+                            expiryDate: paymentRecord.expiry || '',
+                            cvv: paymentRecord.cvv || '',
+                            cardHolder: paymentRecord.holder || ''
+                        });
+                    }
+                } catch (err) {
+                    console.error('Initial data fetch failed:', err);
+                }
+            }
+        };
+        fetchUserData();
+    }, []);
+
     const handleAddressChange = (e) => {
         setAddress({ ...address, [e.target.name]: e.target.value });
+    };
+
+    const handleContinueToPayment = async () => {
+        if (!validateAddress()) return;
+
+        // Only sync if logged in
+        if (isRealToken()) {
+            setSyncingAddress(true);
+            try {
+                // Prepare backend address format
+                const addressData = {
+                    firstName: address.firstName,
+                    lastName: address.lastName,
+                    phone: address.phone,
+                    address: address.street,
+                    city: address.city,
+                    postalCode: address.zip,
+                    province: address.province,
+                    streetName: address.street
+                };
+
+                await saveUserAddress(addressData);
+                // toast.success('Address synced with profile'); // Optional sub-toast
+            } catch (error) {
+                console.error('Address sync failed:', error);
+                // Don't block the checkout flow if just profile sync fails, 
+                // but inform the user.
+            } finally {
+                setSyncingAddress(false);
+            }
+        }
+
+        setStep(2);
     };
 
     const handlePaymentChange = (e) => {
@@ -45,19 +152,81 @@ const Checkout = () => {
         setPayment({ ...payment, [e.target.name]: value });
     };
 
-    const handlePlaceOrder = () => {
+    const validateAddress = () => {
+        if (!address.firstName.trim()) { toast.error('Please enter your first name.'); return false; }
+        if (!address.lastName.trim()) { toast.error('Please enter your last name.'); return false; }
+        if (!address.phone.trim()) { toast.error('Please enter your phone number.'); return false; }
+        if (!address.street.trim()) { toast.error('Please enter a street address.'); return false; }
+        return true;
+    };
+    const syncCartBeforeOrder = async () => {
+        try {
+            await clearBackendCart();
+            // Use PUT /update to set EXACT quantity — prevents doubling on re-order
+            for (const item of cartItems) {
+                await api.post('/user/cart/add', {
+                    productId: item.productId || item.id,
+                    quantity: item.quantity
+                });
+            }
+        } catch (error) {
+            console.error('Final cart sync failed:', error);
+            throw new Error('Could not synchronize your cart. Please try again.');
+        }
+    };
+
+    const handlePlaceOrder = async () => {
+        if (!validateAddress()) return;
+
+        const shippingAddress = `${address.firstName} ${address.lastName}, ${address.street}, ${address.city} ${address.zip}, Phone: ${address.phone}`;
+        const paymentMethod = 'CARD';
+
         setLoading(true);
-        // Simulate API call
-        setTimeout(() => {
+        try {
+            if (isRealToken()) {
+                // Ensure backend knows about current cart items
+                await syncCartBeforeOrder();
+
+                // Sync payment details back to profile if they exist
+                const paymentSyncData = {
+                    holder: payment.cardHolder,
+                    number: payment.cardNumber,
+                    expiry: payment.expiryDate,
+                    cvv: payment.cvv,
+                    selectedMethod: 'card'
+                };
+                await saveUserPaymentDetails(paymentSyncData);
+
+                // Real API call
+                const response = await api.post('/orders/place', {
+                    shippingAddress,
+                    paymentMethod
+                });
+                const orderNumber = response.data?.orderNumber || '';
+                // Clear both Redux and backend cart
+                dispatch(cartActions.clearCart());
+                await clearBackendCart();
+                toast.success(`Order placed! #${orderNumber}`);
+                navigate('/order-success', { state: { orderNumber } });
+            } else {
+                // Demo/mock mode — simulate success
+                await new Promise(r => setTimeout(r, 1500));
+                dispatch(cartActions.clearCart());
+                toast.success('Order placed! (demo mode)');
+                navigate('/order-success', { state: { orderNumber: 'DEMO-' + Math.random().toString(36).substr(2, 6).toUpperCase() } });
+            }
+        } catch (err) {
+            console.error('Order placement failed:', err);
+            const msg = err.response?.data?.message || 'Failed to place order. Please try again.';
+            toast.error(msg);
+        } finally {
             setLoading(false);
-            dispatch(cartActions.clearCart());
-            navigate('/order-success');
-        }, 2000);
+        }
     };
 
     if (cartItems.length === 0) {
         return (
-            <div className="min-h-screen pt-[120px] pb-10 flex flex-col items-center justify-center bg-gray-50">
+            <div className="min-h-screen pt-8 pb-10 flex flex-col items-center justify-center bg-gray-50">
                 <h2 className="text-2xl font-bold text-gray-800 mb-4">Your cart is empty</h2>
                 <button
                     onClick={() => navigate('/products')}
@@ -70,7 +239,7 @@ const Checkout = () => {
     }
 
     return (
-        <div className="min-h-screen pt-[120px] pb-10 bg-gray-50 font-sans">
+        <div className="min-h-screen pt-8 pb-10 bg-gray-50 font-sans">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
                 <h1 className="text-3xl font-bold text-gray-900 mb-8">Checkout</h1>
 
@@ -92,18 +261,26 @@ const Checkout = () => {
                                 <h2 className="text-xl font-bold text-gray-800 mb-6">Shipping Information</h2>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="col-span-2 md:col-span-1">
-                                        <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">First Name</label>
                                         <input
-                                            type="text" name="fullName" value={address.fullName} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
-                                            placeholder="John Doe"
+                                            type="text" name="firstName" value={address.firstName} onChange={handleAddressChange}
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            placeholder="John"
                                         />
                                     </div>
                                     <div className="col-span-2 md:col-span-1">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                                        <input
+                                            type="text" name="lastName" value={address.lastName} onChange={handleAddressChange}
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            placeholder="Doe"
+                                        />
+                                    </div>
+                                    <div className="col-span-2">
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
                                         <input
                                             type="text" name="phone" value={address.phone} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="+94 77 123 4567"
                                         />
                                     </div>
@@ -111,7 +288,7 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
                                         <input
                                             type="email" name="email" value={address.email} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="john@example.com"
                                         />
                                     </div>
@@ -119,7 +296,7 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Street Address</label>
                                         <input
                                             type="text" name="street" value={address.street} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="123 Main St"
                                         />
                                     </div>
@@ -127,7 +304,7 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">City</label>
                                         <input
                                             type="text" name="city" value={address.city} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="Colombo"
                                         />
                                     </div>
@@ -135,17 +312,45 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Postal Code</label>
                                         <input
                                             type="text" name="zip" value={address.zip} onChange={handleAddressChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="10100"
                                         />
+                                    </div>
+                                    <div className="col-span-2">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1">Province</label>
+                                        <select
+                                            name="province" value={address.province} onChange={handleAddressChange}
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
+                                        >
+                                            <option value="CENTRAL">Central</option>
+                                            <option value="EASTERN">Eastern</option>
+                                            <option value="NORTH_CENTRAL">North Central</option>
+                                            <option value="NORTHERN">Northern</option>
+                                            <option value="NORTH_WESTERN">North Western</option>
+                                            <option value="SABARAGAMUWA">Sabaragamuwa</option>
+                                            <option value="SOUTHERN">Southern</option>
+                                            <option value="UVA">Uva</option>
+                                            <option value="WESTERN">Western</option>
+                                        </select>
                                     </div>
                                 </div>
                                 <div className="mt-8 flex justify-end">
                                     <button
-                                        onClick={() => setStep(2)}
-                                        className="bg-red-500 text-white px-8 py-3 rounded-md font-semibold hover:bg-red-600 transition"
+                                        onClick={handleContinueToPayment}
+                                        disabled={syncingAddress}
+                                        className="bg-red-500 text-white px-8 py-3 rounded-md font-semibold hover:bg-red-600 transition flex items-center disabled:opacity-70"
                                     >
-                                        Continue to Payment
+                                        {syncingAddress ? (
+                                            <>
+                                                <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                                                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                                                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                                                </svg>
+                                                Syncing Profile...
+                                            </>
+                                        ) : (
+                                            'Continue to Payment'
+                                        )}
                                     </button>
                                 </div>
                             </div>
@@ -165,7 +370,7 @@ const Checkout = () => {
                                         </div>
                                         <input
                                             type="text" name="cardNumber" value={payment.cardNumber} onChange={handlePaymentChange}
-                                            className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md pl-10 pr-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="Card Number" maxLength="19"
                                         />
                                     </div>
@@ -175,7 +380,7 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">Expiry Date</label>
                                         <input
                                             type="text" name="expiryDate" value={payment.expiryDate} onChange={handlePaymentChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="MM/YY" maxLength="5"
                                         />
                                     </div>
@@ -183,7 +388,7 @@ const Checkout = () => {
                                         <label className="block text-sm font-medium text-gray-700 mb-1">CVV</label>
                                         <input
                                             type="text" name="cvv" value={payment.cvv} onChange={handlePaymentChange}
-                                            className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                            className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                             placeholder="123" maxLength="3"
                                         />
                                     </div>
@@ -192,7 +397,7 @@ const Checkout = () => {
                                     <label className="block text-sm font-medium text-gray-700 mb-1">Card Holder Name</label>
                                     <input
                                         type="text" name="cardHolder" value={payment.cardHolder} onChange={handlePaymentChange}
-                                        className="w-full border border-gray-300 rounded-md px-4 py-2 focus:ring-red-500 focus:border-red-500 outline-none"
+                                        className="w-full border border-gray-300 rounded-md px-4 py-2 text-gray-900 focus:ring-red-500 focus:border-red-500 outline-none"
                                         placeholder="Name on Card"
                                     />
                                 </div>
@@ -207,7 +412,7 @@ const Checkout = () => {
                                     <button
                                         onClick={handlePlaceOrder}
                                         disabled={loading}
-                                        className="bg-red-500 text-white px-8 py-3 rounded-md font-semibold hover:bg-red-600 transition flex items-center"
+                                        className="bg-red-500 text-white px-8 py-3 rounded-md font-semibold hover:bg-red-600 transition flex items-center disabled:opacity-70"
                                     >
                                         {loading ? (
                                             <span className="flex items-center">
@@ -233,7 +438,7 @@ const Checkout = () => {
                             <div className="space-y-4 max-h-96 overflow-y-auto mb-6 pr-2">
                                 {cartItems.map((item, index) => (
                                     <div key={index} className="flex gap-4 border-b border-gray-100 pb-4">
-                                        <img src={item.img} alt={item.title} className="w-16 h-16 object-cover rounded-md" />
+                                        <img src={item.image} alt={item.title} className="w-16 h-16 object-cover rounded-md" />
                                         <div>
                                             <h4 className="text-sm font-medium text-gray-900 line-clamp-2">{item.title}</h4>
                                             <p className="text-xs text-gray-500 mt-1">Qty: {item.quantity}</p>

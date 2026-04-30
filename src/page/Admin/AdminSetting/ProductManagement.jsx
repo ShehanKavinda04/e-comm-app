@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { Search, MoreVertical, ChevronDown, ChevronLeft, ChevronRight } from 'lucide-react';
-import { getProductMetrics, getProducts } from '../../../Services/MockDataService';
+import api from '../../../Services/api';
 
 const ProductManagement = () => {
   const [metrics, setMetrics] = useState({
@@ -12,7 +12,8 @@ const ProductManagement = () => {
   const [products, setProducts] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [currentPage, setCurrentPage] = useState(1);
-  const ITEMS_PER_PAGE = 5;
+  const ITEMS_PER_PAGE = 8;
+  const [isLoading, setIsLoading] = useState(true);
   const [filters, setFilters] = useState({
     category: '',
     seller: '',
@@ -20,32 +21,77 @@ const ProductManagement = () => {
     dateSort: 'newest'
   });
 
-  useEffect(() => {
-    // Fetch metrics
-    const metricsData = getProductMetrics();
-    setMetrics(metricsData);
+  const fetchData = async () => {
+    try {
+      const [metricsRes, productsRes] = await Promise.all([
+        api.get('/admin/products/metrics'),
+        api.get('/admin/products')
+      ]);
+      setMetrics(metricsRes.data);
+      setProducts(productsRes.data);
+    } catch (error) {
+      console.error("Failed to fetch products management data:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
-    // Fetch products
-    const productsData = getProducts();
-    setProducts(productsData);
+  useEffect(() => {
+    fetchData();
+
+    // SSE Real-time Synchronization
+    const sseUrl = "http://localhost:8082/api/ads/stream";
+    const eventSource = new EventSource(sseUrl);
+
+    eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+      console.log("Admin Product Management: Real-time update received");
+      fetchData();
+    });
+
+    eventSource.onerror = (err) => {
+      console.error("SSE Connection Error for Admin Product Management:", err);
+      eventSource.close();
+    };
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
   }, []);
 
-  const uniqueCategories = useMemo(() => [...new Set(products.map(p => p.category))], [products]);
-  const uniqueSellers = useMemo(() => [...new Set(products.map(p => p.seller))], [products]);
+  const handleApprove = async (id) => {
+    try {
+      await api.put(`/admin/products/${id}/approve`);
+      fetchData(); // Refresh list after approval
+    } catch (error) {
+      console.error("Failed to approve product:", error);
+    }
+  };
+
+  const handleFlag = async (id) => {
+    try {
+      await api.put(`/admin/products/${id}/flag`);
+      fetchData();
+    } catch (error) {
+      console.error("Failed to flag product:", error);
+    }
+  };
+
+  const uniqueCategories = useMemo(() => [...new Set(products.map(p => p.categoryName || 'N/A'))], [products]);
+  const uniqueSellers = useMemo(() => [...new Set(products.map(p => p.sellerName || 'Unknown'))], [products]);
   const uniqueStatuses = useMemo(() => [...new Set(products.map(p => p.status))], [products]);
 
   const filteredProducts = useMemo(() => {
     return products.filter(product => {
-      const matchesSearch = product.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        product.seller.toLowerCase().includes(searchTerm.toLowerCase());
-      const matchesCategory = filters.category ? product.category === filters.category : true;
-      const matchesSeller = filters.seller ? product.seller === filters.seller : true;
+      const matchesSearch = (product.name?.toLowerCase() || '').includes(searchTerm.toLowerCase()) ||
+        (product.sellerName?.toLowerCase() || '').includes(searchTerm.toLowerCase());
+      const matchesCategory = filters.category ? product.categoryName === filters.category : true;
+      const matchesSeller = filters.seller ? product.sellerName === filters.seller : true;
       const matchesStatus = filters.status ? product.status === filters.status : true;
 
       return matchesSearch && matchesCategory && matchesSeller && matchesStatus;
     }).sort((a, b) => {
-      if (filters.dateSort === 'newest') return new Date(b.dateAdded) - new Date(a.dateAdded);
-      if (filters.dateSort === 'oldest') return new Date(a.dateAdded) - new Date(b.dateAdded);
+      if (filters.dateSort === 'newest') return (b.id || 0) - (a.id || 0); // Using ID for recency since dateAdded might not be in DTO yet
+      if (filters.dateSort === 'oldest') return (a.id || 0) - (b.id || 0);
       return 0;
     });
   }, [products, searchTerm, filters]);
@@ -55,15 +101,23 @@ const ProductManagement = () => {
     setCurrentPage(1);
   };
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = (product) => {
+    const status = product.status;
     switch (status) {
-      case 'Pending':
-        return <span className="bg-[#fadcb6] text-[#eca609] text-xs font-bold px-3 py-1 rounded-full">Pending</span>;
-      case 'Approved':
-        return <span className="bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full">Approve</span>;
-      case 'Out of Stock':
-        return <span className="bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full">Out of Stock</span>;
-      case 'Flagged':
+      case 'PENDING_APPROVAL':
+        return (
+          <button 
+            onClick={() => handleApprove(product.id)}
+            className="bg-orange-100 text-orange-600 hover:bg-orange-200 text-xs font-bold px-3 py-1 rounded-full transition-colors"
+          >
+            Approve
+          </button>
+        );
+      case 'ACTIVE':
+        return <span className="bg-green-100 text-green-600 text-xs font-bold px-3 py-1 rounded-full">Approved</span>;
+      case 'INACTIVE':
+        return <span className="bg-gray-100 text-gray-500 text-xs font-bold px-3 py-1 rounded-full">Inactive</span>;
+      case 'FLAGGED':
         return <span className="bg-red-100 text-red-600 text-xs font-bold px-3 py-1 rounded-full">Flagged</span>;
       default:
         return <span className="bg-gray-100 text-gray-600 text-xs font-bold px-3 py-1 rounded-full">{status}</span>;
@@ -75,7 +129,7 @@ const ProductManagement = () => {
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         <KPICard title="Pending Approvals" value={metrics.pendingApprovals} valueColor="text-[#cc5e4d]" />
-        <KPICard title="Total Products" value={metrics.totalProducts.toLocaleString()} valueColor="text-black" />
+        <KPICard title="Total Products" value={(metrics.totalProducts || 0).toLocaleString()} valueColor="text-black" />
         <KPICard title="Out of Stock" value={metrics.outOfStock} valueColor="text-[#cc5e4d]" />
         <KPICard title="Flagged Products" value={metrics.flaggedProducts} valueColor="text-[#eca609]" />
       </div>
@@ -126,51 +180,60 @@ const ProductManagement = () => {
       </div>
 
       {/* Product List */}
-      <div className="space-y-4 mb-8">
-        {filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map(product => (
-          <ProductCard
-            key={product.id}
-            image={product.image}
-            title={product.title}
-            seller={product.seller}
-            category={product.category}
-            stock={product.stock}
-            statusBadge={getStatusBadge(product.status)}
-          />
-        ))}
-        {filteredProducts.length === 0 && (
-          <div className="text-center py-10 text-gray-500">No products found matching filters.</div>
-        )}
-      </div>
+      {isLoading ? (
+        <div className="flex justify-center py-20">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-red-500"></div>
+        </div>
+      ) : (
+        <div className="space-y-4 mb-8">
+          {filteredProducts.slice((currentPage - 1) * ITEMS_PER_PAGE, currentPage * ITEMS_PER_PAGE).map(product => (
+            <ProductCard
+              key={product.id}
+              image={product.imageFilename ? `/api/uploads/${product.imageFilename}` : 'https://via.placeholder.com/150'}
+              title={product.name}
+              seller={product.sellerName}
+              category={product.categoryName}
+              stock={product.stock}
+              statusBadge={getStatusBadge(product)}
+              onFlag={() => handleFlag(product.id)}
+            />
+          ))}
+          {filteredProducts.length === 0 && (
+            <div className="text-center py-10 text-gray-500">No products found matching filters.</div>
+          )}
+        </div>
+      )}
 
       {/* Pagination */}
-      <div className="flex justify-between items-center text-sm text-gray-600">
-        <button
-          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-          disabled={currentPage === 1}
-          className="hover:text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Previous
-        </button>
-        <div className="flex gap-4">
-          {Array.from({ length: Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
-            <span
-              key={page}
-              onClick={() => setCurrentPage(page)}
-              className={`cursor-pointer ${currentPage === page ? 'text-red-500 font-bold' : 'hover:text-black'}`}
-            >
-              {page}
-            </span>
-          ))}
+      {filteredProducts.length > ITEMS_PER_PAGE && (
+        <div className="flex justify-between items-center text-sm text-gray-600">
+          <button
+            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+            disabled={currentPage === 1}
+            className="hover:text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Previous
+          </button>
+          <div className="flex gap-4">
+            {Array.from({ length: Math.ceil(filteredProducts.length / ITEMS_PER_PAGE) }, (_, i) => i + 1).map(page => (
+              <span
+                key={page}
+                onClick={() => setCurrentPage(page)}
+                className={`cursor-pointer ${currentPage === page ? 'text-red-500 font-bold' : 'hover:text-black'}`}
+              >
+                {page}
+              </span>
+            ))}
+          </div>
+          <button
+            onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProducts.length / ITEMS_PER_PAGE), p + 1))}
+            disabled={currentPage === Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)}
+            className="hover:text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            Next
+          </button>
         </div>
-        <button
-          onClick={() => setCurrentPage(p => Math.min(Math.ceil(filteredProducts.length / ITEMS_PER_PAGE), p + 1))}
-          disabled={currentPage === Math.ceil(filteredProducts.length / ITEMS_PER_PAGE)}
-          className="hover:text-black font-medium disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          Next
-        </button>
-      </div>
+      )}
     </div>
   );
 };
@@ -198,22 +261,34 @@ const FilterDropdown = ({ label, options, value, onChange }) => (
   </div>
 );
 
-const ProductCard = ({ image, title, seller, category, stock, statusBadge }) => (
+const ProductCard = ({ image, title, seller, category, stock, statusBadge, onFlag }) => (
   <div className="bg-white rounded-xl p-4 shadow-sm border border-orange-200 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
     <div className="flex items-center gap-4">
-      <img src={image} alt={title} className="w-20 h-20 rounded-lg object-cover bg-black" />
+      <img 
+        src={image} 
+        alt={title} 
+        className="w-20 h-20 rounded-lg object-cover bg-gray-100 border border-gray-200" 
+        onError={(e) => e.target.src = 'https://via.placeholder.com/150'}
+      />
       <div>
         <h3 className="text-lg font-semibold text-gray-900">{title}</h3>
-        <p className="text-sm text-gray-500">Seller: {seller}</p>
-        <p className="text-sm text-gray-500">Category: {category}, Stock:{stock}</p>
-        <div className="mt-2">
+        <p className="text-sm text-gray-500">Seller: <span className="text-gray-700 font-medium">{seller}</span></p>
+        <p className="text-sm text-gray-500">Category: <span className="text-gray-700 font-medium">{category}</span>, Stock: <span className={stock <= 0 ? 'text-red-500 font-bold' : 'text-gray-700'}>{stock}</span></p>
+        <div className="mt-2 text-black">
           {statusBadge}
+          {stock <= 0 && <span className="ml-2 bg-pink-100 text-pink-600 text-xs font-bold px-3 py-1 rounded-full">Out of Stock</span>}
         </div>
       </div>
     </div>
-    <button className="text-gray-900 hover:text-gray-600 self-start md:self-center">
-      <MoreVertical className="w-6 h-6" />
-    </button>
+    <div className="flex items-center gap-2">
+      <button 
+        onClick={onFlag}
+        className="text-gray-400 hover:text-red-500 transition-colors p-2"
+        title="Flag Product"
+      >
+        <MoreVertical className="w-6 h-6" />
+      </button>
+    </div>
   </div>
 );
 

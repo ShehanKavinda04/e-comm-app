@@ -5,7 +5,7 @@ import { formatDate } from './utils';
 
 const ContactSellerModal = ({ order, onClose }) => {
   const [message, setMessage] = useState(
-    `Hello, I have a query regarding my order #${order.id} placed on ${formatDate(order.date)}.\n\nItems: ${order.items.map(i => i.name).join(', ')}\n\nPlease let me know...`
+    `Hello, I have a query regarding my order #${order.orderNumber} placed on ${formatDate(order.orderedAt)}.\n\nItems: ${order.items.map(i => i.productName).join(', ')}\n\nPlease let me know...`
   );
 
   const handleSubmit = (e) => {
@@ -20,7 +20,7 @@ const ContactSellerModal = ({ order, onClose }) => {
         <div className="border-b px-8 py-6 flex items-center justify-between">
           <div>
             <h2 className="text-2xl font-bold text-gray-900">Contact Seller</h2>
-            <p className="text-sm text-gray-600 mt-1">{order.seller.name}</p>
+            <p className="text-sm text-gray-600 mt-1">{order.sellerName || 'Vendor'}</p>
           </div>
           <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 transition">
             <X size={24} />
@@ -30,11 +30,11 @@ const ContactSellerModal = ({ order, onClose }) => {
         <div className="p-8 space-y-6">
           <div className="flex items-center gap-3 text-gray-700">
             <Mail size={20} />
-            <span>{order.seller.email}</span>
+            <span>{order.sellerEmail || 'N/A'}</span>
           </div>
           <div className="flex items-center gap-3 text-gray-700">
             <Phone size={20} />
-            <span>{order.seller.phone}</span>
+            <span>{order.sellerPhone || 'N/A'}</span>
           </div>
 
           <form onSubmit={handleSubmit}>

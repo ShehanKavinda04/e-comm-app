@@ -74,7 +74,7 @@ const SellerProfile = () => {
   };
 
   return (
-    <div className="pt-[110px] w-full ms:h-full md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300">
+    <div className="w-full min-h-screen bg-gray-300">
       <div className="flex flex-col md:flex-row md:items-center gap-5 justify-between mb-5">
         <div>
           <p className="text-5xl text-black font-normal mb-2 sm:ml-5 md:ml-14">

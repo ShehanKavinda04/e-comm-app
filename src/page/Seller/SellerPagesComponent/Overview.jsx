@@ -15,29 +15,93 @@ import FeaturedVideoIcon from '@mui/icons-material/FeaturedVideo';
 import TimelineIcon from '@mui/icons-material/Timeline';
 import StoreIcon from '@mui/icons-material/Store';
 
+import { AuthContext } from '../../../Contexts/AuthContext';
+import { useContext, useState } from 'react';
+import axios from 'axios';
+
 const Overview = ({ onNavigate }) => {
   const dispatch = useDispatch();
-
-  // Safe selector access
+  const { user } = useContext(AuthContext);
   const sellerState = useSelector((state) => state.seller);
+  const { stats, isLoading } = sellerState;
 
   useEffect(() => {
     // Initial fetch
-    dispatch(fetchSellerStats());
+    if (user?.token) {
+      dispatch(fetchSellerStats({ token: user.token }));
+    }
 
-    // Poll every 3 seconds for real-time updates
-    const intervalId = setInterval(() => {
-      dispatch(fetchSellerStats());
-    }, 3000);
+    // Real-time synchronization via SSE
+    if (!user?.token) return;
 
-    return () => clearInterval(intervalId);
-  }, [dispatch]);
+    let eventSource;
+    let retryCount = 0;
+    const maxRetries = 5;
 
-  if (!sellerState) {
-    return <div className="p-4 text-red-500">Error: Seller data not found. Please refresh the page.</div>;
-  }
+    const connectSSE = () => {
+      // Use relative URL to leverage the Vite/Production proxy configuration
+      const sseUrl = "/api/ads/stream";
+      
+      console.log("Connecting to Dashboard SSE at:", sseUrl);
+      eventSource = new EventSource(sseUrl);
 
-  const { stats, isLoading } = sellerState;
+      eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+        console.log("Real-time Dashboard Update Received at:", new Date().toLocaleTimeString());
+        dispatch(fetchSellerStats({ token: user.token }));
+      });
+
+      eventSource.onopen = () => {
+        console.log("Dashboard SSE connection established");
+        retryCount = 0;
+      };
+
+      eventSource.onerror = (err) => {
+        console.error("Dashboard SSE connection error", err);
+        eventSource.close();
+        
+        // Retry logic
+        if (retryCount < maxRetries) {
+          const timeout = Math.pow(2, retryCount) * 1000;
+          console.log(`Retrying SSE connection in ${timeout}ms (Attempt ${retryCount + 1}/${maxRetries})`);
+          setTimeout(connectSSE, timeout);
+          retryCount++;
+        }
+      };
+    };
+
+    connectSSE();
+
+    return () => {
+      if (eventSource) eventSource.close();
+    };
+  }, [dispatch, user?.token]);
+
+  const [isActionLoading, setIsActionLoading] = useState(false);
+
+  const handleStatusUpdate = async (itemId, newStatus) => {
+    if (!user?.token || isActionLoading) return;
+    
+    setIsActionLoading(true);
+    try {
+      await axios.patch(`/api/seller/orders/items/${itemId}`, 
+        { status: newStatus },
+        { headers: { Authorization: `Bearer ${user.token}` } }
+      );
+      console.log(`Successfully updated order item ${itemId} to ${newStatus}`);
+      
+      // Explicitly refresh dashboard immediately for better UX
+      dispatch(fetchSellerStats({ token: user.token }));
+    } catch (error) {
+      console.error("Failed to update status:", error);
+      alert(`Error updating status: ${error.response?.data?.message || error.message}`);
+    } finally {
+      setIsActionLoading(false);
+    }
+  };
+
+  const handleView = (itemId) => {
+    onNavigate && onNavigate('Orders');
+  };
 
   // Format currency
   const formatCurrency = (amount) => {
@@ -97,20 +161,32 @@ const Overview = ({ onNavigate }) => {
                     <p className="text-xs text-gray-500 mt-0.5">{item.subtitle}</p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <button className="text-black hover:text-gray-600">
+                    <button 
+                      onClick={() => handleView(item.id)}
+                      className="text-black hover:text-gray-600"
+                      disabled={isActionLoading}
+                    >
                       {/* Eye Icon */}
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" />
                         <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                       </svg>
                     </button>
-                    <button className="bg-green-100 text-green-500 rounded-full p-1 hover:bg-green-200">
+                    <button 
+                      onClick={() => handleStatusUpdate(item.id, 'SHIPPED')}
+                      className={`bg-green-100 text-green-500 rounded-full p-1 hover:bg-green-200 ${isActionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={isActionLoading}
+                    >
                       {/* Check Icon */}
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
                       </svg>
                     </button>
-                    <button className="bg-red-100 text-red-500 rounded-full p-1 hover:bg-red-200">
+                    <button 
+                      onClick={() => handleStatusUpdate(item.id, 'CANCELLED')}
+                      className={`bg-red-100 text-red-500 rounded-full p-1 hover:bg-red-200 ${isActionLoading ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      disabled={isActionLoading}
+                    >
                       {/* X Icon */}
                       <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-4 h-4">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
@@ -142,20 +218,21 @@ const Overview = ({ onNavigate }) => {
               stats.recentOrders.map((order, index) => {
                 let statusColor = "";
                 let statusBg = "";
-                switch (order.status) {
-                  case "Shipped":
+                const s = order.status?.toUpperCase();
+                switch (s) {
+                  case "SHIPPED":
                     statusColor = "text-blue-600";
                     statusBg = "bg-blue-50";
                     break;
-                  case "Delivered":
+                  case "DELIVERED":
                     statusColor = "text-green-600";
                     statusBg = "bg-green-50";
                     break;
-                  case "Processing":
+                  case "PROCESSING":
                     statusColor = "text-orange-600";
                     statusBg = "bg-orange-50";
                     break;
-                  case "Canceled":
+                  case "CANCELLED":
                     statusColor = "text-red-600";
                     statusBg = "bg-red-50";
                     break;
@@ -166,9 +243,9 @@ const Overview = ({ onNavigate }) => {
                 return (
                   <OrderCard
                     key={index}
-                    id={order.id}
-                    name={order.customerName || order.name} /* Fallback to name if customerName missing in some mocks */
-                    price={formatCurrency(order.amount || parseFloat(order.price.replace(/[^0-9.]/g, '')))} /* Handle raw number or string price */
+                    id={`#${order.orderNumber || order.id}`}
+                    name={`${order.customerName} ordered ${order.productName}`}
+                    price={formatCurrency(order.amount || 0)}
                     status={order.status}
                     statusColor={statusColor}
                     statusBg={statusBg}

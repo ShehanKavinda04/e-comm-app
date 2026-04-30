@@ -1,12 +1,12 @@
 export const getProducts = () => {
     // High-quality mock data centralized here
     return [
-        { id: 1, title: 'iPhone 13 Pro', name: 'iPhone 13 Pro', brand: 'Apple', category: 'Mobile Parts', price: 150000, image: 'https://images.unsplash.com/photo-1510557880182-3d4d3cba35a5?auto=format&fit=crop&w=500&q=60', stock: 50, status: "Approved" },
-        { id: 2, title: 'Samsung S21 Screen', name: 'Samsung S21 Screen', brand: 'Samsung', category: 'Mobile Parts', price: 45000, image: 'https://images.unsplash.com/photo-1610945415295-d9bbf067e59c?auto=format&fit=crop&w=500&q=60', stock: 30, status: "Approved" },
-        { id: 3, title: 'HP Pavilion Battery', name: 'HP Pavilion Battery', brand: 'HP', category: 'Laptop Parts', price: 8500, image: 'https://images.unsplash.com/photo-1588872657578-13eb22fd5525?auto=format&fit=crop&w=500&q=60', stock: 15, status: "Out of Stock" },
+        { id: 1, title: 'iPhone 13 Pro', name: 'iPhone 13 Pro', brand: 'Apple', category: 'Mobile Parts', price: 150000, image: 'https://images.unsplash.com/photo-1621330396173-e41b1cafd17f?w=500&q=80', stock: 50, status: "Approved" },
+        { id: 2, title: 'Samsung S21 Screen', name: 'Samsung S21 Screen', brand: 'Samsung', category: 'Mobile Parts', price: 45000, image: samsungS21ScreenImg, stock: 30, status: "Approved" },
+        { id: 3, title: 'HP Pavilion Battery', name: 'HP Pavilion Battery', brand: 'HP', category: 'Laptop Parts', price: 8500, image: hpBatteryImg, stock: 15, status: "Out of Stock" },
         { id: 4, title: 'Lenovo Charger', name: 'Lenovo Charger', brand: 'Lenovo', category: 'Laptop Parts', price: 4500, image: 'https://images.unsplash.com/photo-1583863788434-e58a36330cf0?auto=format&fit=crop&w=500&q=60', stock: 100, status: "Approved" },
-        { id: 5, title: 'OnePlus 9 Back Glass', name: 'OnePlus 9 Back Glass', brand: 'OnePlus', category: 'Mobile Parts', price: 3500, image: 'https://images.unsplash.com/photo-1598327105666-5b89351aff23?auto=format&fit=crop&w=500&q=60', stock: 40, status: "Pending" },
-        { id: 6, title: 'Dell Inspecton Screen', name: 'Dell Inspecton Screen', brand: 'Dell', category: 'Laptop Parts', price: 12000, image: 'https://images.unsplash.com/photo-1593640408182-31c70c8268f5?auto=format&fit=crop&w=500&q=60', stock: 25, status: "Approved" },
+        { id: 5, title: 'OnePlus 9 Back Glass', name: 'OnePlus 9 Back Glass', brand: 'OnePlus', category: 'Mobile Parts', price: 3500, image: 'https://images.unsplash.com/photo-1616348436168-de43ad0db179?auto=format&fit=crop&w=500&q=60', stock: 40, status: "Pending" },
+        { id: 6, title: 'Dell Inspiron Screen', name: 'Dell Inspiron Screen', brand: 'Dell', category: 'Laptop Parts', price: 12000, image: 'https://images.unsplash.com/photo-1588872657578-13eb22fd5525?auto=format&fit=crop&w=500&q=60', stock: 25, status: "Approved" },
         { id: 7, title: 'Asus ROG Fan', name: 'Asus ROG Fan', brand: 'Asus', category: 'Laptop Parts', price: 6000, image: 'https://images.unsplash.com/photo-1587202372775-e229f172b9d7?auto=format&fit=crop&w=500&q=60', stock: 10, status: "Flagged" },
         { id: 8, title: 'Acer Aspire Keyboard', name: 'Acer Aspire Keyboard', brand: 'Acer', category: 'Laptop Parts', price: 2500, image: 'https://images.unsplash.com/photo-1587829741301-3b7c8f2595f9?auto=format&fit=crop&w=500&q=60', stock: 60, status: "Approved" },
         { id: 9, title: 'iPhone 14 Case', name: 'iPhone 14 Case', brand: 'Apple', category: 'Accessories', price: 1500, image: 'https://images.unsplash.com/photo-1601593346740-925612772716?auto=format&fit=crop&w=500&q=60', stock: 200, status: "Approved" },
@@ -232,6 +232,16 @@ export const getCategorySales = () => {
     ];
 };
 
+// Custom designed ad images
+import summerSaleImg from 'src/assets/ads/summer_sale.png';
+import winterClearanceImg from 'src/assets/ads/winter_clearance.png';
+import newArrivalsImg from 'src/assets/ads/new_arrivals.png';
+import technovaPromoImg from 'src/assets/ads/technova_promo.png';
+
+// Custom designed product images
+import samsungS21ScreenImg from 'src/assets/products/samsung_s21_screen.png';
+import hpBatteryImg from 'src/assets/products/hp_battery.png';
+
 export const getAdCampaigns = () => {
     // Dynamic drift factor (small variation to make it feel "live")
     const drift = () => Math.floor(Math.random() * 10) - 5;
@@ -240,7 +250,7 @@ export const getAdCampaigns = () => {
         {
             id: 1,
             title: "Summer Sale Campaign",
-            image: "https://images.unsplash.com/photo-1607083206869-4c7672e72a8a?w=500&auto=format&fit=crop&q=60",
+            image: summerSaleImg,
             status: "Active",
             clicks: 1234 + drift(),
             impressions: 1234 + drift(),
@@ -249,7 +259,7 @@ export const getAdCampaigns = () => {
         {
             id: 2,
             title: "Winter Clearance",
-            image: "https://images.unsplash.com/photo-1483985988355-763728e1935b?w=500&auto=format&fit=crop&q=60",
+            image: winterClearanceImg,
             status: "Pause",
             clicks: 856 + drift(),
             impressions: 2400 + drift(),
@@ -258,11 +268,20 @@ export const getAdCampaigns = () => {
         {
             id: 3,
             title: "New Arrivals Promo",
-            image: "https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=500&auto=format&fit=crop&q=60",
+            image: newArrivalsImg,
             status: "Active",
             clicks: 1105 + drift(),
             impressions: 12500 + Math.floor(Math.random() * 100),
             active: true
+        },
+        {
+            id: 4,
+            title: "Technova Brand Promo",
+            image: technovaPromoImg,
+            status: "Pause",
+            clicks: 450 + drift(),
+            impressions: 1000 + drift(),
+            active: false
         }
     ];
 };
@@ -327,12 +346,11 @@ export const updateUser = (id, updatedData) => {
 };
 
 // Mutable wishlist
-let wishlists = [
+const wishlists = [
     {
         userId: 1, // Test User
         items: [
-            { id: 101, name: "Casual Shoes", category: "Fashion", price: 4500, image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=500" },
-            { id: 102, name: "iPhone 13 Screen", category: "Electronics", price: 12000, image: "https://images.unsplash.com/photo-1621330381972-e8f805d87381?w=500" }
+            { id: 101, name: "Casual Shoes", category: "Fashion", price: 4500, image: "https://images.unsplash.com/photo-1525966222134-fcfa99b8ae77?w=500" }
         ]
     }
 ];
@@ -340,6 +358,19 @@ let wishlists = [
 export const getWishlist = (userId) => {
     const list = wishlists.find(w => w.userId === userId);
     return list ? list.items : [];
+};
+
+export const addToWishlist = (userId, item) => {
+    let list = wishlists.find(w => w.userId === userId);
+    if (!list) {
+        list = { userId, items: [] };
+        wishlists.push(list);
+    }
+    const exists = list.items.find(i => i.id === item.id);
+    if (!exists) {
+        list.items.push(item);
+    }
+    return list.items;
 };
 
 export const removeFromWishlist = (userId, itemId) => {
@@ -384,4 +415,48 @@ export const getUserOrders = (userEmail) => {
     return mockOrders
         .filter(o => o.customerName === userName)
         .sort((a, b) => new Date(b.date) - new Date(a.date));
+};
+
+// Mutable notifications
+let notifications = [
+    { id: 1, userId: 1, title: 'Order Shipped!', description: 'Your order #ORD_123 has been shipped.', time: '2 mins ago', unread: true },
+    { id: 2, userId: 1, title: 'Flash Sale Alert', description: 'Up to 50% off on mobile accessories!', time: '1 hour ago', unread: true },
+    { id: 3, userId: 1, title: 'Price Drop', description: 'Laptop HP 250 G8 price decreased by Rs. 5000.', time: '5 hours ago', unread: false },
+    { id: 4, userId: 1, title: 'Welcome to Tech Nova!', description: 'Thanks for creating an account.', time: '1 day ago', unread: false },
+];
+
+export const getNotifications = (userId = 1) => {
+    return notifications.filter(n => n.userId === userId);
+};
+
+export const markAllNotificationsAsRead = (userId = 1) => {
+    notifications = notifications.map(n =>
+        n.userId === userId ? { ...n, unread: false } : n
+    );
+    return getNotifications(userId);
+};
+
+export const markNotificationAsRead = (id) => {
+    const index = notifications.findIndex(n => n.id === id);
+    if (index !== -1) {
+        notifications[index] = { ...notifications[index], unread: false };
+    }
+    return notifications.find(n => n.id === id);
+};
+
+export const addNotification = (userId, notification) => {
+    const newNotification = {
+        id: Date.now(), // Unique ID
+        userId,
+        time: 'Just now',
+        unread: true,
+        ...notification
+    };
+    notifications.unshift(newNotification); // Add to beginning
+    return notifications.filter(n => n.userId === userId);
+};
+
+export const deleteNotification = (id, userId) => {
+    notifications = notifications.filter(n => n.id !== id);
+    return notifications.filter(n => n.userId === userId);
 };

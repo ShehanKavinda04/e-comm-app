@@ -1,15 +1,18 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useContext } from 'react';
 import RemoveRedEyeIcon from '@mui/icons-material/RemoveRedEye';
 import LocalShippingIcon from '@mui/icons-material/LocalShipping';
+import LocalPhoneIcon from '@mui/icons-material/LocalPhone';
 import { useDispatch, useSelector } from 'react-redux';
-import { fetchSellerStats, updateOrderStatus } from '../../../Store/ReduxSlice/sellerSlice';
+import { fetchSellerOrders, updateOrderItemStatusThunk } from '../../../Store/ReduxSlice/sellerSlice';
 import ViewOrderModal from './OrderComponents/ViewOrderModal';
 import TrackOrderModal from './OrderComponents/TrackOrderModal';
+import { AuthContext } from '../../../Contexts/AuthContext';
 
 const Orders = () => {
   const [activeTab, setActiveTab] = useState('All');
   const dispatch = useDispatch();
-  const { stats, isLoading } = useSelector((state) => state.seller);
+  const { user } = useContext(AuthContext);
+  const { allOrders, isLoading } = useSelector((state) => state.seller);
 
   // Modal States
   const [viewOrder, setViewOrder] = useState(null);
@@ -18,16 +21,40 @@ const Orders = () => {
   const [isTrackModalOpen, setIsTrackModalOpen] = useState(false);
 
   useEffect(() => {
-    if (!stats || !stats.recentOrders || stats.recentOrders.length === 0) {
-      dispatch(fetchSellerStats());
+    if (user?.token) {
+      dispatch(fetchSellerOrders({ token: user.token }));
     }
-  }, [dispatch, stats]);
 
-  const orders = stats?.recentOrders || [];
+    // Real-time synchronization via SSE
+    if (!user?.token) return;
+
+    let eventSource;
+    const connectSSE = () => {
+      const sseUrl = "/api/ads/stream";
+      eventSource = new EventSource(sseUrl);
+
+      eventSource.addEventListener("DASHBOARD_UPDATE", (event) => {
+        console.log("Orders List: Real-time update received via SSE");
+        dispatch(fetchSellerOrders({ token: user.token }));
+      });
+
+      eventSource.onerror = () => {
+        eventSource.close();
+        setTimeout(connectSSE, 5000);
+      };
+    };
+
+    connectSSE();
+    return () => {
+      if (eventSource) eventSource.close();
+    };
+  }, [dispatch, user?.token]);
+
+  const orders = allOrders || [];
 
   const filteredOrders = activeTab === 'All'
     ? orders
-    : orders.filter(order => order.status === activeTab);
+    : orders.filter(order => order.status?.toUpperCase() === activeTab.toUpperCase());
 
   const handleView = (order) => {
     setViewOrder(order);
@@ -60,8 +87,8 @@ const Orders = () => {
         <div className='lg:px-20 md:px-10'>
           <div className='bg-gray-200 m-5 space-y-5 rounded-2xl px-5 py-8 min-h-[400px]'>
             <div className="flex justify-between items-center mb-4">
-              <p className='text-black text-2xl'>Recent Orders ({filteredOrders.length})</p>
-              {isLoading && <p className="text-gray-500">Loading...</p>}
+              <p className='text-black text-2xl font-bold'>Order List ({filteredOrders.length})</p>
+              {isLoading && <span className="text-sm font-bold text-orange-600 animate-pulse">Synchronizing...</span>}
             </div>
 
             {filteredOrders.length > 0 ? (
@@ -71,16 +98,19 @@ const Orders = () => {
                   order={order}
                   onView={() => handleView(order)}
                   onTrack={() => handleTrack(order)}
+                  token={user?.token}
                 />
               ))
             ) : (
-              <p className="text-center text-gray-500 py-10">No orders found in this category.</p>
+              <div className="text-center py-20 bg-white rounded-xl border border-dashed border-gray-400">
+                <p className="text-gray-500">No {activeTab !== 'All' ? activeTab.toLowerCase() : ''} orders found.</p>
+              </div>
             )}
           </div>
         </div>
       </div>
 
-      {/* Modals */}
+      {/* Detail Modals */}
       <ViewOrderModal
         isOpen={isViewModalOpen}
         onClose={() => setIsViewModalOpen(false)}
@@ -90,6 +120,7 @@ const Orders = () => {
         isOpen={isTrackModalOpen}
         onClose={() => setIsTrackModalOpen(false)}
         order={trackOrder}
+        token={user?.token}
       />
     </div>
   )
@@ -97,98 +128,137 @@ const Orders = () => {
 
 export default Orders
 
-const OrderItemCard = ({ order, onView, onTrack }) => {
+const OrderItemCard = ({ order, onView, onTrack, token }) => {
   const dispatch = useDispatch();
+  const [isUpdating, setIsUpdating] = useState(false);
 
-  const handleStatusChange = (e) => {
-    dispatch(updateOrderStatus({ id: order.id, status: e.target.value }));
-  };
-
-  const getStatusColor = (status) => {
-    switch (status) {
-      case 'Processing': return 'bg-orange-100 text-orange-800 border-orange-200';
-      case 'Shipped': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'Delivered': return 'bg-green-100 text-green-800 border-green-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+  const handleStatusChange = async (e) => {
+    const newStatus = e.target.value;
+    setIsUpdating(true);
+    try {
+      await dispatch(updateOrderItemStatusThunk({ 
+        token, 
+        itemId: order.id, 
+        status: newStatus 
+      })).unwrap();
+    } catch (err) {
+      console.error("Status Update Error:", err);
+      alert("Failed to update status. Please try again.");
+    } finally {
+      setIsUpdating(false);
     }
   };
 
+  const getStatusColor = (status) => {
+    switch (status?.toUpperCase()) {
+      case 'PROCESSING': return 'bg-orange-600 text-white';
+      case 'SHIPPED': return 'bg-blue-600 text-white';
+      case 'DELIVERED': return 'bg-green-600 text-white';
+      case 'CANCELLED': return 'bg-red-600 text-white';
+      default: return 'bg-gray-600 text-white';
+    }
+  };
+
+  const formatDate = (dateString) => {
+    if (!dateString) return "N/A";
+    return new Date(dateString).toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'short',
+      day: 'numeric'
+    });
+  };
+
   return (
-    <div className='border border-orange-200 rounded-xl p-6 bg-white shadow-sm transition-all hover:shadow-md'>
-      {/* Top Header Section */}
-      <div className='flex justify-between items-start mb-4'>
+    <div className={`border border-orange-200 rounded-xl p-6 bg-white shadow-sm transition-all hover:shadow-md ${isUpdating ? 'opacity-60 grayscale-[0.5] pointer-events-none' : ''}`}>
+      {/* Upper Info Section */}
+      <div className='flex justify-between items-start mb-6'>
         <div className='flex gap-4'>
-          <div className='w-12 h-12 bg-gray-100 rounded-xl overflow-hidden border border-gray-200'>
+          <div className='w-16 h-16 bg-gray-50 rounded-lg overflow-hidden border border-gray-100 flex items-center justify-center'>
             <img
-              src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=100&h=100&fit=crop"
+              src={order.productImage || "https://placehold.co/100x100/f3f4f6/9ca3af?text=Product"}
               alt="Product"
-              className='w-full h-full object-cover'
+              className='w-full h-full object-contain'
+              onError={(e) => {
+                e.target.src = "https://placehold.co/100x100/f3f4f6/9ca3af?text=Product";
+              }}
             />
           </div>
           <div>
             <div className='flex items-center gap-2'>
-              <span className='font-bold text-lg'>{order.id}</span>
+              <span className='font-bold text-xl'>#{order.orderNumber || order.id}</span>
             </div>
-            <p className='text-xs text-gray-500'>Ordered on {order.date}</p>
-            <p className='text-sm font-medium mt-1'>{order.item || order.productName}</p>
+            <p className='text-xs text-gray-400 font-medium'>Placed on {formatDate(order.orderDate)}</p>
+            <p className='text-sm font-bold text-gray-800 mt-1 uppercase'>{order.productName}</p>
           </div>
         </div>
+        
         <div className='text-right'>
-          <p className='font-bold text-lg'>Rs. {order.price || order.amount.toLocaleString()}</p>
-
-          {/* Status Dropdown */}
-          <div className="mt-2">
+          <p className='font-black text-xl text-black'>Rs. {(order.subtotal || 0).toLocaleString()}</p>
+          
+          {/* Status Select with real-time feedback */}
+          <div className="mt-3">
             <select
-              value={order.status}
+              value={order.status?.toUpperCase()}
               onChange={handleStatusChange}
-              className={`text-xs font-semibold px-2 py-1 rounded-full border cursor-pointer focus:outline-none focus:ring-2 focus:ring-offset-1 focus:ring-orange-300 ${getStatusColor(order.status)}`}
+              disabled={isUpdating}
+              className={`text-xs font-black px-4 py-2 rounded-full border-none cursor-pointer focus:outline-none focus:ring-4 focus:ring-orange-100 transition-all ${getStatusColor(order.status)}`}
             >
-              <option value="Processing">Processing</option>
-              <option value="Shipped">Shipped</option>
-              <option value="Delivered">Delivered</option>
-              <option value="Canceled">Canceled</option>
+              <option value="PROCESSING">PROCESSING</option>
+              <option value="SHIPPED">SHIPPED</option>
+              <option value="DELIVERED">DELIVERED</option>
+              <option value="CANCELLED">CANCELLED</option>
             </select>
+            {isUpdating && <p className="text-[10px] text-orange-600 mt-1 font-bold animate-pulse">Syncing...</p>}
           </div>
         </div>
       </div>
 
-      {/* Tracking Info Section */}
-      <div className='bg-blue-50 rounded-lg p-3 flex justify-between items-center mb-4 border border-blue-100'>
-        <div>
-          <p className='text-xs font-bold text-gray-700'>Tracking Number</p>
-          <p className='text-sm text-gray-900'>{order.trackingNumber || 'TN-' + Math.floor(Math.random() * 1000000)}</p>
+      {/* Tracking / Metadata Row */}
+      <div className='bg-blue-50/50 rounded-xl p-4 flex justify-between items-center mb-6 border border-blue-100'>
+        <div className='flex flex-col'>
+          <span className='text-[10px] font-black text-blue-800 uppercase tracking-tighter'>Tracking ID</span>
+          <span className='text-sm text-blue-900 font-mono font-bold'>{order.trackingNumber || 'UNASSIGNED'}</span>
         </div>
-        <div className='text-right'>
-          <p className='text-xs font-bold text-gray-700'>Expected Delivery</p>
-          <p className='text-sm text-gray-900'>{order.expectedDelivery || '2025-01-10'}</p>
+        <div className='text-right flex flex-col'>
+          <span className='text-[10px] font-black text-blue-800 uppercase tracking-tighter'>Est. Delivery</span>
+          <span className='text-sm text-blue-900 font-bold'>{formatDate(order.expectedDelivery)}</span>
         </div>
       </div>
 
-      {/* Actions Section */}
+      {/* Action Buttons Row */}
       <div className='flex justify-between items-center'>
         <div className='flex gap-3'>
           <button
             onClick={onView}
-            className='flex items-center gap-2 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition text-gray-700'
+            className='flex items-center gap-2 border-2 border-gray-200 rounded-xl px-5 py-2.5 text-sm font-black hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-700 cursor-pointer'
           >
             <RemoveRedEyeIcon sx={{ fontSize: 18 }} />
             View
           </button>
           <button
             onClick={onTrack}
-            className='flex items-center gap-2 border border-gray-300 rounded-lg px-4 py-2 text-sm font-medium hover:bg-gray-50 hover:border-gray-400 transition text-gray-700'
+            className='flex items-center gap-2 border-2 border-gray-200 rounded-xl px-5 py-2.5 text-sm font-black hover:border-gray-400 hover:bg-gray-50 transition-all text-gray-700 cursor-pointer'
           >
             <LocalShippingIcon sx={{ fontSize: 18 }} />
-            Track
+            Logistics
           </button>
         </div>
-        <a
-          href={`mailto:${order.customerEmail || 'customer@example.com'}?subject=Order #${order.id}`}
-          className='flex items-center gap-2 text-gray-500 hover:text-black cursor-pointer transition'
-        >
-          <span className='scale-x-[-1] text-lg'>📞</span>
-          <span className='text-sm font-medium hidden sm:inline'>Contact Customer</span>
-        </a>
+        
+        <div className='flex items-center gap-4'>
+            <a
+                href={order.customerPhone !== 'N/A' ? `tel:${order.customerPhone}` : '#'}
+                onClick={(e) => {
+                    if (order.customerPhone === 'N/A') {
+                        e.preventDefault();
+                        alert("Customer contact information is not available.");
+                    }
+                }}
+                className={`flex items-center gap-2 px-4 py-2.5 rounded-xl transition-all font-bold ${order.customerPhone !== 'N/A' ? 'bg-orange-50 text-orange-700 hover:bg-orange-100 cursor-pointer' : 'opacity-30 cursor-not-allowed'}`}
+            >
+                <LocalPhoneIcon sx={{ fontSize: 20 }} />
+                <span>Contact Customer</span>
+            </a>
+        </div>
       </div>
     </div>
   )

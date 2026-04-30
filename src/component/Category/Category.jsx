@@ -70,7 +70,16 @@ const ProductUnit = ({ imgUrl, categoryId, id, title }) => {
   return (
     <Link to={`/category/${categoryId}`}>
       <div className='w-24 h-24 sm:w-28 sm:h-28 md:w-32 md:h-32 rounded-full overflow-hidden shadow-md bg-white border border-gray-100 mx-auto flex items-center justify-center p-4'>
-        <img src={imgUrl} alt={title || `Category ${id}`} className='w-full h-full object-contain hover:scale-110 transition-transform duration-300' />
+        <img 
+          src={imgUrl} 
+          alt={title || `Category ${id}`} 
+          className='w-full h-full object-contain hover:scale-110 transition-transform duration-300'
+          crossOrigin="anonymous"
+          onError={(e) => {
+            e.target.src = "https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=200&q=80"; // Fallback: tech icon style
+            e.target.onerror = null; // Prevent infinite loop
+          }}
+        />
       </div>
     </Link>
   );

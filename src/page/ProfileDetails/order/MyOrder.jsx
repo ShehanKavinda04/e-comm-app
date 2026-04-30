@@ -4,8 +4,12 @@ import { Package } from 'lucide-react';
 import OrderItemCard from './OrderItemCard';
 import OrderDetailsModal from './OrderDetailsModal';
 import ContactSellerModal from './ContactSellerModal';
-import { getUserOrders } from '../../../Services/MockDataService';
+import { getUserOrders, getOrderDetails } from '../../../Services/orderService';
 import { AuthContext } from '../../../Contexts/AuthContext';
+
+const isRealToken = () => {
+  return !!localStorage.getItem('token');
+};
 
 const statusOptions = [
   { label: 'All', value: 'all' },
@@ -21,17 +25,48 @@ const MyOrders = () => {
   const [activeFilter, setActiveFilter] = useState('all');
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [contactOrder, setContactOrder] = useState(null);
+  const [loadingDetails, setLoadingDetails] = useState(false);
+
+  const handleFetchAndShowDetails = async (orderSummary, type) => {
+    setLoadingDetails(true);
+    try {
+      const fullDetails = await getOrderDetails(orderSummary.orderId || orderSummary.id);
+      if (type === 'details') setSelectedOrder(fullDetails);
+      else if (type === 'contact') setContactOrder(fullDetails);
+    } catch (error) {
+      console.error('Failed to load order details:', error);
+    } finally {
+      setLoadingDetails(false);
+    }
+  };
 
   useEffect(() => {
-    if (user?.email) {
-      const fetchedOrders = getUserOrders(user.email);
-      setOrders(fetchedOrders);
-    }
-  }, [user]);
+    let intervalId;
 
-  const filteredOrders = orders.filter(
-    (order) => activeFilter === 'all' || order.status === activeFilter
-  );
+    const fetchOrders = async () => {
+      // In a real app, backend uses JWT for identity, but we just check if logged in
+      if (user && isRealToken()) {
+        try {
+          const filterParam = activeFilter === 'Canceled' ? 'CANCELLED' : activeFilter;
+          const fetchedOrders = await getUserOrders(filterParam);
+          setOrders(fetchedOrders);
+        } catch (error) {
+          console.error('Error fetching orders:', error);
+        }
+      }
+    };
+
+    fetchOrders(); // Initial fetch
+
+    // Poll every 5 seconds for real-time updates
+    intervalId = setInterval(fetchOrders, 5000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user, activeFilter]);
+
+  const filteredOrders = orders;
 
   return (
     <div className="min-h-screen bg-gray-50 py-8">
@@ -67,10 +102,10 @@ const MyOrders = () => {
           <div className="space-y-6">
             {filteredOrders.map((order) => (
               <OrderItemCard
-                key={order.id}
+                key={order.orderId || order.id || Math.random()}
                 order={order}
-                onViewDetails={setSelectedOrder}
-                onContactSeller={setContactOrder}
+                onViewDetails={(o) => handleFetchAndShowDetails(o, 'details')}
+                onContactSeller={(o) => handleFetchAndShowDetails(o, 'contact')}
               />
             ))}
           </div>

@@ -8,7 +8,7 @@ import { useNavigate } from 'react-router-dom';
 const Card = () => {
   const navigate = useNavigate();
   return (
-    <div className='pt-[190px] w-full ms:h-full  md:h-screen md:overflow-scroll sm:overflow-hidden bg-gray-300 '>
+    <div className='w-full min-h-screen bg-gray-300'>
       <div className='flex flex-col justify-center items-center gap-2'>
         <ShoppingCartOutlinedIcon sx={{
           color: 'black',

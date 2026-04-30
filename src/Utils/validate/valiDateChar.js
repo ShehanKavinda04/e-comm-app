@@ -12,4 +12,4 @@ export const symbolCher = ["@", "#", "$", "&", "_", "-","."];
 
 export const numberCher = ["0","1","2","3","4","5","6","7","8","9"];
 
-export const emailDomain = ["gmail.com","outlook.com","yahoo.com"];
+export const emailDomain = ["gmail.com","outlook.com","yahoo.com", "technova.com"];

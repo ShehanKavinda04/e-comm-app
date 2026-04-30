@@ -7,9 +7,14 @@ import WebIcon from '@mui/icons-material/Web';
 import AddIcon from '@mui/icons-material/Add';
 
 import { useNavigate } from 'react-router-dom';
-import { getRecentOrders, getUserStats } from '../../Services/MockDataService';
+import { getUserOverview } from '../../Services/userService';
 import { useState, useEffect, useContext } from 'react';
 import { AuthContext } from '../../Contexts/AuthContext';
+
+const isRealToken = () => {
+    const token = localStorage.getItem('token');
+    return !!token; // Trust the token existence; backend will validate
+};
 
 const Overview = () => {
   const navigate = useNavigate();
@@ -23,14 +28,33 @@ const Overview = () => {
   });
 
   useEffect(() => {
-    // Fetch stats for logged in user
-    if (user?.email) {
-      const userStats = getUserStats(user.email);
-      setStats(userStats);
-    }
+    let intervalId;
 
-    // In a real app, this would filter by the logged-in user's ID
-    setOrders(getRecentOrders().slice(0, 3)); // Show top 3
+    const fetchData = async () => {
+      if (user && isRealToken()) {
+        try {
+          const data = await getUserOverview();
+          setStats({
+            totalOrders: data.totalOrders || 0,
+            wishlistItems: data.wishlistItems || 0,
+            activeOrders: data.activeOrders || 0,
+            loyaltyPoints: data.loyaltyPoints || 0
+          });
+          setOrders(data.recentOrders || []);
+        } catch (error) {
+          console.error("Failed to fetch user stats", error);
+        }
+      }
+    };
+
+    fetchData(); // Initial fetch
+
+    // Poll every 5 seconds for real-time updates
+    intervalId = setInterval(fetchData, 5000);
+
+    return () => {
+      if (intervalId) clearInterval(intervalId);
+    };
   }, [user]);
 
   return (
@@ -126,7 +150,7 @@ const Overview = () => {
           <div className='flex flex-col gap-3 mt-4'>
             {orders.length > 0 ? (
               orders.map((order) => (
-                <OrderItem key={order.id} order={order} />
+                <OrderItem key={order.orderId} order={order} />
               ))
             ) : (
               <p className="text-gray-500 text-center py-4">No recent orders</p>
@@ -155,15 +179,23 @@ const OrderItem = ({ order }) => {
 
   return (
     <div className='flex flex-col sm:flex-row border-2 px-3 py-2 rounded-xl gap-4 border-orange-600' >
-      <div className='w-full sm:w-[25%] md:w-[20%] rounded-2xl'>
-        {/* Use a placeholder if no image in mock data, but we'll try to use a static one for now as mock data doesn't have images for orders yet */}
-        <img src="https://m.media-amazon.com/images/I/71OexQTz4-L._SL1500_.jpg" alt="item1" className='w-full object-contain rounded-2xl' />
+      <div className='w-full sm:w-[25%] md:w-[20%] rounded-2xl overflow-hidden flex items-center justify-center bg-gray-50 min-h-[80px]'>
+        <img 
+          src={order.productImageUrl || 'https://placehold.co/120x120/f3f4f6/9ca3af?text=Product'} 
+          alt="Order item" 
+          className='w-full h-auto object-contain rounded-2xl max-h-[100px]'
+          onError={(e) => { e.target.src = 'https://placehold.co/120x120/f3f4f6/9ca3af?text=Product'; }}
+        />
       </div>
       <div className='flex flex-col gap-1 sm:justify-center'>
-        <p className='text-black font-bold text-sm sm:text-base'>#{order.id}</p>
-        <p className='text-black text-[12px] sm:text-[14px]'>{order.productName}</p>
-        <div className={`text-black text-[10px] sm:text-[12px] ${getStatusColor(order.status)} w-[80%] py-0.5 flex justify-center rounded-full`}>
-          {order.status}
+        <p className='text-black font-bold text-sm sm:text-base'>#{order.orderNumber || order.orderId}</p>
+        <p className='text-black text-[12px] sm:text-[14px]'>
+          {order.productNames && order.productNames.length > 0 
+            ? order.productNames.join(', ') 
+            : order.productName}
+        </p>
+        <div className={`text-black text-[10px] sm:text-[12px] ${getStatusColor(order.overallStatus || order.status)} w-32 py-1 flex justify-center rounded-full shadow-sm font-medium uppercase tracking-wider`}>
+          {order.overallStatus || order.status}
         </div>
       </div>
     </div>

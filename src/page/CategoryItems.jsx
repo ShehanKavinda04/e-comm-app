@@ -2,30 +2,54 @@ import { useState, useEffect } from "react"
 import { useParams } from "react-router-dom"
 import Loading from "../component/Loading/Loading"
 import Footer from "../component/Footer"
-import { getProducts } from "../Services/MockDataService"
 import { CategoryItem } from "../component/Product/Product"
 import getDataFromCollection from "../Utils/dataFetch/getDataFromCollection"
+import api from "../Services/api"
 
 const CategoryItems = () => {
-  const { categoryId } = useParams();
+  const { categoryId } = useParams(); // This is the slug (e.g., 'mobile-parts')
   const [categoryItemData, setCategoryItemData] = useState([]);
   const [categoryTitle, setCategoryTitle] = useState("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // 1. Fetch products and filter by categoryId
-    const allProducts = getProducts();
-    const filtered = allProducts.filter(p =>
-      p.category && p.category.toLowerCase().replace(/\s+/g, '-') === categoryId.toLowerCase()
-    );
-    setCategoryItemData(filtered);
+    const fetchCategoryData = async () => {
+      setLoading(true);
+      try {
+        // Fetch all active products and filter by slug locally to handle deep links
+        const response = await api.get('/products');
+        const data = response.data;
+        
+        const filtered = data.filter(p => {
+            const slug = (p.categoryName || '').toLowerCase().replace(/\s+/g, '-');
+            return slug === categoryId;
+        });
 
-    // 2. Fetch category title from the central collection
-    getDataFromCollection('category', (categories) => {
-      const found = categories.find(c => c.CategoryId === categoryId);
-      if (found) setCategoryTitle(found.title);
-      setLoading(false);
-    });
+        const transformed = filtered.map(item => ({
+          ...item,
+          imgUrl: item.imageFilename ? `/api/uploads/${item.imageFilename}` : 'https://placehold.co/500x600?text=No+Image',
+          name: item.brandName || 'Generic',
+          product: item.categoryName || 'Product',
+          title: item.name || 'Product',
+          rating: item.avgRating || 4.5,
+          price: item.price
+        }));
+        
+        setCategoryItemData(transformed);
+
+        // Fetch category title from the central collection
+        getDataFromCollection('category', (categories) => {
+          const found = categories.find(c => c.CategoryId === categoryId);
+          if (found) setCategoryTitle(found.title);
+          setLoading(false);
+        });
+      } catch (err) {
+        console.error("Failed to fetch category items:", err);
+        setLoading(false);
+      }
+    };
+
+    fetchCategoryData();
   }, [categoryId]);
 
   if (loading) {
@@ -47,11 +71,11 @@ const CategoryItems = () => {
               <CategoryItem
                 key={index}
                 id={item.id}
-                imgUrl={item.image}
-                name={item.brand}
-                product={item.category}
+                imgUrl={item.imgUrl}
+                name={item.name}
+                product={item.product}
                 rating={item.rating || 4.5}
-                reviews={`${Math.floor(Math.random() * 100) + 20} reviews`}
+                reviews="12 reviews"
                 title={item.title}
                 price={item.price}
               />
@@ -69,4 +93,3 @@ const CategoryItems = () => {
 }
 
 export default CategoryItems
-

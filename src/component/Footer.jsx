@@ -49,7 +49,7 @@ const Footer = () => {
           <div>
             <div className='flex gap-3 items-center' >
               <div className='bg-gray-100 h-[50px] w-[50px] rounded-full flex items-center justify-center'>
-                <img src="asda" alt="dads" className='w-full object-contain' />
+                <img src="https://images.unsplash.com/photo-1591799264318-7e6ef8ddb7ea?w=100&q=80" alt="TechNova Logo" className='w-full h-full object-cover rounded-full' />
               </div>
               <div>
                 <p className='text-2xl font-bold text-white'>TECH NOVA</p>

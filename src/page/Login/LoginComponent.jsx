@@ -31,20 +31,24 @@ const LoginComponent = ({ onSuccess }) => {
 
     setIsLoading(true);
     try {
-      const role = await login(email, password);
+      const result = await login(email, password);
 
+      if (result.twoFaRequired) {
+        toast.info(result.message || "2FA Required. Check your email.");
+        navigate("/otp", { state: { email: result.email, purpose: "2FA" } });
+        return;
+      }
+
+      const { role } = result;
       if (role) {
         toast.success("Login Successful!");
       }
 
       if (onSuccess) {
         onSuccess();
-        // Optional: Check if we are on a protected route or simply refresh state
-        // For now, closing the modal is sufficient as AuthContext updates global user state.
         if (role === 'SELLER') navigate('/seller/dashboard');
         else if (role === 'ADMIN') navigate('/admin');
       } else {
-        // Standalone page behavior
         if (role === 'BUYER') navigate('/');
         else if (role === 'SELLER') navigate('/seller/dashboard');
         else if (role === 'ADMIN') navigate('/admin');

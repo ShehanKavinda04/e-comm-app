@@ -1,7 +1,6 @@
-/* eslint-disable no-unused-vars */
 import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../../Services/api";
 import { toast } from "react-hot-toast";
 
 const OTPPage = () => {
@@ -15,10 +14,16 @@ const OTPPage = () => {
   const navigate = useNavigate();
   const inputsRef = useRef([]);
 
-  const email = location.state?.email || "example@gmail.com";
+  const email = location.state?.email || "";
+  const purpose = location.state?.purpose || "FORGOT_PASSWORD"; // REGISTRATION, FORGOT_PASSWORD, 2FA
 
   // Countdown Timer
   useEffect(() => {
+    if (!email) {
+      toast.error("Email missing. Returning to login.");
+      navigate("/login");
+      return;
+    }
     if (timer > 0) {
       const interval = setInterval(() => {
         setTimer((prev) => prev - 1);
@@ -27,7 +32,7 @@ const OTPPage = () => {
     } else {
       setCanResend(true);
     }
-  }, [timer]);
+  }, [timer, email, navigate]);
 
   // Handle OTP Input Change
   const handleChange = (value, index) => {
@@ -72,27 +77,42 @@ const OTPPage = () => {
     setError("");
 
     try {
-      const response = await axios.post(
-        "http://localhost:8080/api/auth/verify-otp",
-        { email, otp: otpCode },
-        { withCredentials: true }
-      );
+      let endpoint = "/auth/verify-email";
+      let payload = { email, otp: otpCode };
 
-      if (response.data.success) {
-        toast.success("OTP Verified Successfully!");
-        navigate("/forgatepassword1", { state: { email } });
+      if (purpose === "FORGOT_PASSWORD") {
+        endpoint = "/auth/reset-password"; // Note: For reset, we actually need the new password too, 
+                                          // but usually you validate OTP first or send all together.
+                                          // Let's check backend reset-password.
+      } else if (purpose === "2FA") {
+        endpoint = "/auth/login/2fa";
+        payload = { email, otpCode: otpCode }; // Backend expects otpCode for 2fa
+      }
+
+      // If it's Forgot Password, we navigate to the actual password reset page FIRST 
+      // or we just validate the OTP. Backend reset-password expects OTP + NewPassword.
+      // So for Forgot Password, we just pass the OTP to the next page.
+      if (purpose === "FORGOT_PASSWORD") {
+        // We'll trust the OTP and pass it to the final reset page
+        navigate("/forgatepassword1", { state: { email, otp: otpCode } });
+        return;
+      }
+
+      const response = await api.post(endpoint, payload);
+
+      if (purpose === "REGISTRATION") {
+        toast.success("Email Verified! You can now login.");
+        navigate("/login");
+      } else if (purpose === "2FA") {
+        const { accessToken } = response.data;
+        localStorage.setItem('token', accessToken);
+        // We need to refresh AuthContext here. 
+        // Best way is to have AuthContext handle 2FA completion.
+        window.location.href = "/"; // Simple reload to refresh context from token
       }
     } catch (err) {
       const msg = err.response?.data?.message || "Invalid or expired OTP";
-
-      if (err.response?.status === 429) {
-        setError("Too many attempts. Please try again later.");
-      } else if (err.response?.status === 403) {
-        setError("OTP expired. Please request a new one.");
-        setCanResend(true);
-      } else {
-        setError(msg);
-      }
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -102,19 +122,18 @@ const OTPPage = () => {
   const handleResend = async () => {
     setLoading(true);
     try {
-      await axios.post(
-        "http://localhost:8080/api/auth/forgot-password",
-        { email },
-        { withCredentials: true }
-      );
+      let endpoint = "/auth/forgot-password";
+      if (purpose === "REGISTRATION") endpoint = "/auth/signup"; // Backend register generates OTP
+      
+      await api.post(endpoint, { email });
+      
       toast.success("New OTP sent!");
       setTimer(60);
       setCanResend(false);
       setOtp(["", "", "", "", "", ""]);
-      inputsRef.current[0].focus();
+      if (inputsRef.current[0]) inputsRef.current[0].focus();
     } catch (err) {
       toast.error("Failed to resend OTP");
-      console.log(err)
     } finally {
       setLoading(false);
     }

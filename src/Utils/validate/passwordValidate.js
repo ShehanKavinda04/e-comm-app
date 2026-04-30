@@ -24,14 +24,8 @@ const passwordValidate = (data, setErrorMsg, setError, setCanSubmit) => {
     if (!containsAny(chars, simpleCher)) {
       errors.push("Password must contain at least one lowercase letter.");
     }
-    if (!containsAny(chars, capitalCher)) {
-      errors.push("Password must contain at least one uppercase letter.");
-    }
     if (!containsAny(chars, numberCher)) {
       errors.push("Password must contain at least one digit.");
-    }
-    if (!containsAny(chars, symbolCher)) {
-      errors.push("Password must contain at least one symbol.");
     }
   }
 

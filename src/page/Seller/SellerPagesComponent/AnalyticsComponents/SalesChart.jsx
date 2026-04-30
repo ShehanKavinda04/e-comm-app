@@ -1,7 +1,7 @@
 import React from 'react';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 
-const SalesChart = ({ data, totalRevenue }) => {
+const SalesChart = ({ data, totalRevenue, days }) => {
 
     const CustomTooltip = ({ active, payload, label }) => {
         if (active && payload && payload.length) {
@@ -14,18 +14,25 @@ const SalesChart = ({ data, totalRevenue }) => {
         return null;
     };
 
+    const hasData = data && data.length > 0;
+
     return (
         <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
             <div className="mb-4">
-                <h3 className="text-gray-700 font-medium text-sm">Sales Over Time</h3>
+                <h3 className="text-gray-700 font-medium text-sm">Revenue Over Time</h3>
                 <div className="flex items-center gap-2">
                     <h2 className="text-2xl font-bold text-gray-900">Rs.{totalRevenue ? totalRevenue.toLocaleString() : '0'}</h2>
-                    <span className="text-green-500 text-xs font-medium">↑ +12.5%</span>
+                    {hasData && <span className="text-green-500 text-xs font-medium">↑ Live</span>}
                 </div>
-                <p className="text-xs text-gray-400">Last 7 Days</p>
+                <p className="text-xs text-gray-400">Last {days} Days</p>
             </div>
 
-            <div style={{ width: '100%', height: 200 }}>
+            <div style={{ width: '100%', height: 200 }} className="relative">
+                {!hasData && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-gray-50/50 rounded-lg border border-dashed border-gray-200">
+                        <p className="text-xs text-gray-400">No sales data recorded for this period</p>
+                    </div>
+                )}
                 <ResponsiveContainer>
                     <AreaChart data={data} margin={{ top: 10, right: 0, left: 0, bottom: 0 }}>
                         <defs>

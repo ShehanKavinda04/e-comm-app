@@ -1,5 +1,4 @@
-import React, { useState } from 'react'
-import axios from 'axios'
+import React, { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import toast from 'react-hot-toast'
 import Step1 from './Seller-Component/Step1'
@@ -10,6 +9,10 @@ import PersonIcon from '@mui/icons-material/Person'
 import InsertDriveFileIcon from '@mui/icons-material/InsertDriveFile'
 import LocationCityIcon from '@mui/icons-material/LocationCity'
 import AccountBalanceWalletIcon from '@mui/icons-material/AccountBalanceWallet'
+import { 
+  checkSellerEligibility, 
+  submitFullSellerApplication
+} from '../../Services/sellerService'
 
 const SelectIconDetails = [
   { Icon: PersonIcon, title: 'Step 1', subtitle: 'Basic Information' },
@@ -23,28 +26,45 @@ const Seller = () => {
   const [section, setSection] = useState(1)
   const [formData, setFormData] = useState({
     fullName: '',
-    phoneNumber: '',
+    phone: '',
     email: '',
     physicalAddress: '',
     businessName: '',
     businessType: '',
     businessDescription: '',
     nicNumber: '',
-    nicDocument: null,
-    proofOfAddress: null,
+    nicFront: null,
+    nicBack: null,
+    utilityBill: null,
     sellerPhoto: null,
     bankName: '',
     accountHolderName: '',
-    bankAccountNumber: '',
+    accountNumber: '',
     branchName: ''
   })
 
-  // submission / upload state
   const [isSubmitting, setIsSubmitting] = useState(false)
-  const [uploadProgress, setUploadProgress] = useState(0) // 0 - 100
   const [submitError, setSubmitError] = useState('')
 
-  // universal change handler (works for inputs, selects and file inputs)
+  useEffect(() => {
+    const initOnboarding = async () => {
+      try {
+        const eligibility = await checkSellerEligibility();
+        if (!eligibility.eligible) {
+          toast.error(eligibility.message);
+          navigate('/profile');
+          return;
+        }
+        // In the new "submit only at end" model, we don't fetch progress
+        // unless we want to allow editing an already submitted (but maybe rejected) application.
+        // For now, we just ensure they aren't already a seller or pending.
+      } catch (err) {
+        console.error("Eligibility check failed", err);
+      }
+    };
+    initOnboarding();
+  }, [navigate]);
+
   const handleChange = (e) => {
     const { name, type, value, files } = e.target
     if (type === 'file') {
@@ -54,97 +74,87 @@ const Seller = () => {
     }
   }
 
-  // Final submit: upload all fields (including files) with progress using axios
+  const handleNextStep = () => {
+    setSubmitError('');
+    if (isStepValid()) {
+      setSection(prev => prev + 1);
+      window.scrollTo(0, 0); // Scroll to top on step change
+    } else {
+      toast.error("Please fill in all required fields.");
+    }
+  };
+
   const handleFinalSubmit = async (e) => {
-    e.preventDefault()
-    setSubmitError('')
-    // basic client-side validation (customize as needed)
-    if (!formData.fullName || !formData.email) {
-      setSubmitError('Full name and Email are required.')
-      return
-    }
-
-    // Step 4 Validation
-    if (!formData.bankName || !formData.accountHolderName || !formData.bankAccountNumber || !formData.branchName) {
-      setSubmitError('All Financial Information (Step 4) is required.')
-      return
-    }
-
-    const payload = new FormData()
-    Object.keys(formData).forEach(key => {
-      const val = formData[key]
-      // For file fields, if val is a File append it, otherwise append string values
-      if (val instanceof File) {
-        payload.append(key, val, val.name)
-      } else if (val !== null && val !== undefined) {
-        payload.append(key, val)
-      }
-    })
+    if (e) e.preventDefault();
+    setSubmitError('');
+    setIsSubmitting(true);
 
     try {
-      setIsSubmitting(true)
-      setUploadProgress(0)
+      const multipart = new FormData();
+      
+      // Construct the JSON data blob for the "@RequestPart('data')"
+      const dataPayload = {
+        fullName: formData.fullName,
+        phone: formData.phone,
+        email: formData.email,
+        physicalAddress: formData.physicalAddress,
+        businessName: formData.businessName,
+        businessType: formData.businessType,
+        businessDescription: formData.businessDescription,
+        nicNumber: formData.nicNumber,
+        bankName: formData.bankName,
+        accountHolderName: formData.accountHolderName,
+        accountNumber: formData.accountNumber,
+        branchName: formData.branchName
+      };
 
-      // Replace this URL with your actual backend endpoint
-      const url = '/api/seller'
+      multipart.append('data', new Blob([JSON.stringify(dataPayload)], { type: 'application/json' }));
 
-      const response = await axios.post(url, payload, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        },
-        onUploadProgress: (progressEvent) => {
-          if (!progressEvent) return
-          const { loaded, total } = progressEvent
-          if (total) {
-            const percent = Math.round((loaded * 100) / total)
-            setUploadProgress(percent)
-          }
-        },
-        timeout: 5 * 60 * 1000 // optional: 5 minutes for uploads
-      })
+      // Append files
+      if (formData.nicFront instanceof File) multipart.append('nicFront', formData.nicFront);
+      if (formData.nicBack instanceof File) multipart.append('nicBack', formData.nicBack);
+      if (formData.utilityBill instanceof File) multipart.append('utilityBill', formData.utilityBill);
+      if (formData.sellerPhoto instanceof File) multipart.append('sellerPhoto', formData.sellerPhoto);
 
-      // handle success
-      console.log('Upload success', response.data)
-      setUploadProgress(100)
-
-      toast.success('Registration Submitted Successfully!')
-      // Short delay to let them see the progress bar complete/toast
-      setTimeout(() => {
-        navigate('/')
-      }, 1500)
-
+      await submitFullSellerApplication(multipart);
+      
+      toast.success('Registration Submitted Successfully! Admin will review your application.');
+      setTimeout(() => navigate('/profile'), 2000);
     } catch (err) {
-      console.error('Upload failed', err)
-      setSubmitError(err?.response?.data?.message || err.message || 'Upload failed')
+      console.error("Submission error:", err);
+      const serverMessage = err.response?.data?.message;
+      const genericMessage = 'Final submission failed. Please ensure all documents are clear and under 10MB.';
+      setSubmitError(serverMessage || genericMessage);
+      toast.error(serverMessage || genericMessage);
     } finally {
-      setIsSubmitting(false)
-      // optionally reset progress after a short delay:
-      // setTimeout(() => setUploadProgress(0), 1000)
+      setIsSubmitting(false);
     }
   }
 
-  // Helper to check validity for button visibility
   const isStepValid = () => {
     if (section === 1) {
-      return formData.fullName && formData.phoneNumber && formData.email && formData.physicalAddress
+      return formData.fullName && formData.phone && formData.email && formData.physicalAddress
     }
     if (section === 2) {
-      return formData.businessName && formData.businessType && formData.businessDescription
+      return formData.businessType && formData.businessDescription
     }
     if (section === 3) {
-      return formData.nicNumber && formData.nicDocument && formData.proofOfAddress
+      return formData.nicNumber && (formData.nicFront || formData.nicFrontUrl);
     }
     return true
   }
-
-  // Removed handleNextStep as button visibility now controls flow
 
   return (
     <div className='lg:pt-[110px] md:pt-[140px] sm:pt-[185px] w-full min-h-screen bg-gray-300 pb-10'>
       {/* top section */}
       <div className='flex flex-col ml-6 '>
         <p className='text-black text-4xl '>Ready to Become a Seller!</p>
-        <p className='text-gray-600' > You meet all requirements. Upload verification documents to proceed.</p>
+        <p className='text-gray-600' >
+          {section === 1 && "Start by providing your basic contact information."}
+          {section === 2 && "Tell us about your business details."}
+          {section === 3 && "Identity verification is required. Please upload the necessary documents."}
+          {section === 4 && "Provide your financial details to complete registration."}
+        </p>
       </div>
 
       <div className='h-[1px] w-full my-5 bg-black' />
@@ -197,10 +207,17 @@ const Seller = () => {
           {section === 1 &&
             <div className='bg-white m-7'>
               <Step1 formData={formData} onChange={handleChange} />
-              <div className='flex justify-end  mt-11 mr-10'>
-                {isStepValid() && (
-                  <button type='button' disabled={isSubmitting} className='bg-orange-600 px-5 py-1 rounded mb-9' onClick={() => setSection(2)}>Next Step</button>
-                )}
+              <div className='flex justify-end mt-11 mr-10'>
+                <button 
+                  type='button' 
+                  disabled={isSubmitting || !isStepValid()} 
+                  className={`px-5 py-1 rounded mb-9 text-white font-medium transition-colors ${
+                    !isStepValid() ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  }`} 
+                  onClick={handleNextStep}
+                >
+                  {isSubmitting ? 'Saving...' : 'Next Step'}
+                </button>
               </div>
             </div>
           }
@@ -209,22 +226,36 @@ const Seller = () => {
             <div className='bg-white m-7'>
               <Step2 formData={formData} onChange={handleChange} />
               <div className='flex justify-between mt-10 mx-10'>
-                <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(1)}>Previous</button>
-                {isStepValid() && (
-                  <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(3)}>Next Step</button>
-                )}
+                <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium hover:bg-orange-50 transition' onClick={() => setSection(1)}>Previous</button>
+                <button 
+                  type='button' 
+                  disabled={isSubmitting || !isStepValid()} 
+                  className={`px-5 py-1 rounded mb-9 text-white font-medium transition-colors ${
+                    !isStepValid() ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  }`} 
+                  onClick={handleNextStep}
+                >
+                  Next Step
+                </button>
               </div>
             </div>
           }
 
           {section === 3 &&
             <div className='bg-white m-7'>
-              <Step3 formData={formData} onChange={handleChange} />
+              <Step3 formData={formData} setFormData={setFormData} />
               <div className='flex justify-between mt-22 mx-10'>
-                <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(2)}>Previous</button>
-                {isStepValid() && (
-                  <button type='button' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9' onClick={() => setSection(4)}>Next Step</button>
-                )}
+                <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium hover:bg-orange-50 transition' onClick={() => setSection(2)}>Previous</button>
+                <button 
+                  type='button' 
+                  disabled={isSubmitting || !isStepValid()} 
+                  className={`px-5 py-1 rounded mb-9 text-white font-medium transition-colors ${
+                    !isStepValid() ? 'bg-gray-400 cursor-not-allowed' : 'bg-orange-600 hover:bg-orange-700'
+                  }`} 
+                  onClick={handleNextStep}
+                >
+                  {isSubmitting ? 'Saving...' : 'Next Step'}
+                </button>
               </div>
             </div>
           }
@@ -234,27 +265,18 @@ const Seller = () => {
               <Step4 formData={formData} onChange={handleChange} />
               <div className='flex justify-between mt-11 mx-10'>
                 <button type='button' disabled={isSubmitting} className='border-orange-600 border-2 text-orange-600 px-5 py-1 rounded mb-9 font-medium' onClick={() => setSection(3)}>Previous</button>
-                <button type='submit' disabled={isSubmitting} className='bg-orange-600  px-5 py-1 rounded mb-9'>{
-                  isSubmitting ? 'Uploading...' : 'Submit'
+                <button type='submit' disabled={isSubmitting} className='bg-orange-600 px-5 py-1 rounded mb-9 text-white font-medium hover:bg-orange-700 transition'>{
+                  isSubmitting ? 'Submitting...' : 'Submit'
                 }</button>
               </div>
             </div>
           }
         </form>
 
-        {/* Upload progress & errors */}
+        {/* Errors */}
         <div className='m-7'>
-          {isSubmitting && (
-            <div className='w-[90%] mx-auto'>
-              <div className='text-sm mb-2'>Upload progress: {uploadProgress}%</div>
-              <div className='w-full bg-gray-200 rounded-full h-3 overflow-hidden'>
-                <div style={{ width: `${uploadProgress}%` }} className='bg-green-600 h-3 transition-all duration-300' />
-              </div>
-            </div>
-          )}
-
           {submitError && (
-            <div className='w-[90%] mx-auto mt-4 text-red-600'>
+            <div className='w-[90%] mx-auto mt-4 text-red-600 font-medium p-3 bg-red-50 border border-red-200 rounded'>
               {submitError}
             </div>
           )}
